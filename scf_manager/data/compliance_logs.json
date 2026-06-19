@@ -1,0 +1,114 @@
+[
+  {
+    "id": "eeccc677",
+    "operation": "提交发布申请",
+    "operator": "SCFReleaseManager",
+    "details": "企业: 华为技术有限公司, 版本: v3.2.0, 金额: 5000000, 风险级别: 常规放款迭代",
+    "release_id": "e08e47fd",
+    "timestamp": "2026-06-19T09:20:16.733245"
+  },
+  {
+    "id": "e52b6136",
+    "operation": "审批流程生成",
+    "operator": "SCFReleaseManager",
+    "details": "风险级别: 常规放款迭代, 审批步骤: 4",
+    "release_id": "e08e47fd",
+    "timestamp": "2026-06-19T09:20:16.734556"
+  },
+  {
+    "id": "4e5fd231",
+    "operation": "审批通过-启动灰度",
+    "operator": "SCFReleaseManager",
+    "details": "发布 e08e47fd 审批通过, 进入灰度阶段 1",
+    "release_id": "e08e47fd",
+    "timestamp": "2026-06-19T09:20:16.734880"
+  },
+  {
+    "id": "a2219537",
+    "operation": "提交发布申请",
+    "operator": "SCFReleaseManager",
+    "details": "企业: 比亚迪股份有限公司, 版本: v3.2.1-hotfix, 金额: 8000000, 风险级别: 紧急资金故障",
+    "release_id": "aecd3016",
+    "timestamp": "2026-06-19T09:20:16.738873"
+  },
+  {
+    "id": "cfbdd57a",
+    "operation": "回滚执行",
+    "operator": "RollbackEngine",
+    "details": "发布 e08e47fd 已回滚, 原因: 监控指标超过阈值，自动触发资金回滚",
+    "release_id": "e08e47fd",
+    "timestamp": "2026-06-19T09:20:16.739682"
+  },
+  {
+    "id": "1a8d481f",
+    "operation": "恢复稳定版本",
+    "operator": "RollbackEngine",
+    "details": "发布 e08e47fd 已恢复至稳定版本 v3.2.0-stable-backup",
+    "release_id": "e08e47fd",
+    "timestamp": "2026-06-19T09:20:16.741387"
+  },
+  {
+    "id": "1775e888",
+    "operation": "前置检查未通过",
+    "operator": "SCFReleaseManager",
+    "details": "发布申请因前置检查未通过被拒绝",
+    "release_id": "aecd3016",
+    "timestamp": "2026-06-19T09:20:16.742792"
+  },
+  {
+    "id": "b700303f",
+    "operation": "提交发布申请",
+    "operator": "SCFReleaseManager",
+    "details": "企业: 三一重工股份有限公司, 版本: v3.3.0-risk, 金额: 3000000, 风险级别: 核心企业风险",
+    "release_id": "9e265151",
+    "timestamp": "2026-06-19T09:20:16.744567"
+  },
+  {
+    "id": "dd9e00b4",
+    "operation": "审批流程生成",
+    "operator": "SCFReleaseManager",
+    "details": "风险级别: 核心企业风险, 审批步骤: 4",
+    "release_id": "9e265151",
+    "timestamp": "2026-06-19T09:20:16.747459"
+  },
+  {
+    "id": "ecebfa09",
+    "operation": "提交发布申请",
+    "operator": "SCFReleaseManager",
+    "details": "企业: 某D级风险企业, 版本: v3.3.1, 金额: 1000000, 风险级别: 常规放款迭代",
+    "release_id": "f45c7065",
+    "timestamp": "2026-06-19T09:20:16.747744"
+  },
+  {
+    "id": "98804896",
+    "operation": "前置检查未通过",
+    "operator": "SCFReleaseManager",
+    "details": "发布申请因前置检查未通过被拒绝",
+    "release_id": "f45c7065",
+    "timestamp": "2026-06-19T09:20:16.749132"
+  },
+  {
+    "id": "e3f9cb1c",
+    "operation": "演练创建",
+    "operator": "RollbackDrillSystem",
+    "details": "演练创建: DRILL-20260619092016-9062 - 供应链金融季度回滚演练",
+    "release_id": "",
+    "timestamp": "2026-06-19T09:20:16.749573"
+  },
+  {
+    "id": "8bb0f2bf",
+    "operation": "演练执行",
+    "operator": "RollbackDrillSystem",
+    "details": "演练执行完成: DRILL-20260619092016-9062 - 结论: 部分异常(已触发回滚) - 耗时: 92.7秒",
+    "release_id": "",
+    "timestamp": "2026-06-19T09:20:16.750308"
+  },
+  {
+    "id": "b3fb9eaf",
+    "operation": "生成周报",
+    "operator": "SCFReleaseManager",
+    "details": "PDF: scf_manager/data/reports\\weekly_report_20260615.pdf, Excel: scf_manager/data/reports\\weekly_data_20260615.xlsx",
+    "release_id": "",
+    "timestamp": "2026-06-19T09:20:17.335703"
+  }
+]

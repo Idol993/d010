@@ -1,0 +1,47 @@
+[
+  {
+    "id": "ENT001",
+    "name": "华为技术有限公司",
+    "credit_limit": 50000000,
+    "credit_used": 20000000,
+    "risk_rating": "A",
+    "industry_chain": "通信产业链",
+    "grayscale_phase": 0
+  },
+  {
+    "id": "ENT002",
+    "name": "比亚迪股份有限公司",
+    "credit_limit": 30000000,
+    "credit_used": 15000000,
+    "risk_rating": "A",
+    "industry_chain": "新能源产业链",
+    "grayscale_phase": 0
+  },
+  {
+    "id": "ENT003",
+    "name": "中兴通讯股份有限公司",
+    "credit_limit": 20000000,
+    "credit_used": 18000000,
+    "risk_rating": "B",
+    "industry_chain": "通信产业链",
+    "grayscale_phase": 0
+  },
+  {
+    "id": "ENT004",
+    "name": "三一重工股份有限公司",
+    "credit_limit": 15000000,
+    "credit_used": 12000000,
+    "risk_rating": "C",
+    "industry_chain": "工程机械产业链",
+    "grayscale_phase": 0
+  },
+  {
+    "id": "ENT005",
+    "name": "某D级风险企业",
+    "credit_limit": 5000000,
+    "credit_used": 4800000,
+    "risk_rating": "D",
+    "industry_chain": "化工产业链",
+    "grayscale_phase": 0
+  }
+]
