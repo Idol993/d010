@@ -26,10 +26,16 @@ class FundMonitor:
                 is_breached, breach_details = self.check_thresholds(metrics)
                 if is_breached:
                     metrics.alert_triggered = True
-                    if on_threshold_breach:
-                        on_threshold_breach(release_id, metrics)
                 self._monitoring_data.append(metrics)
-                self._save()
+                try:
+                    self._save()
+                except Exception as _e:
+                    pass
+                if is_breached and on_threshold_breach:
+                    try:
+                        on_threshold_breach(release_id, metrics)
+                    except Exception as _e:
+                        pass
                 time.sleep(MONITOR_INTERVAL_SECONDS)
 
         thread = threading.Thread(target=_monitor_loop, daemon=True)

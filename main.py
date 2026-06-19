@@ -21,11 +21,14 @@ def print_menu():
     print("  7.  查看发布详情")
     print("  8.  创建回滚演练")
     print("  9.  执行回滚演练")
-    print("  10. 生成周报 (PDF + Excel)")
+    print("  10. 生成周报 (PDF + Excel) [手动]")
     print("  11. 查询历史发布记录")
     print("  12. 批量导出记录")
     print("  13. 查看资金合规日志")
     print("  14. 运行完整演示流程")
+    print("  15. 启动每周一自动生成周报调度器")
+    print("  16. 停止每周一自动生成周报调度器")
+    print("  17. 切换到长期运行模式 (保持调度器、监控器活跃)")
     print("  0.  退出")
     print(f"{'='*60}")
 
@@ -184,24 +187,64 @@ def interactive_mode():
 
         elif choice == "11":
             print("查询条件 (留空跳过):")
-            ent = input("核心企业名称: ").strip()
-            ver = input("版本号: ").strip()
-            module = input("产业链模块: ").strip()
+            start_s = input("发布起始时间 (YYYY-MM-DD 或 YYYY-MM-DD HH:MM:SS): ").strip()
+            end_s = input("发布结束时间 (YYYY-MM-DD 或 YYYY-MM-DD HH:MM:SS): ").strip()
+            ent = input("核心企业名称 (支持模糊): ").strip()
+            module = input("产业链模块 (支持模糊): ").strip()
+            ver = input("版本号 (精确匹配): ").strip()
             kwargs = {}
+            import datetime as _dt
+            if start_s:
+                for _fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d"):
+                    try:
+                        kwargs["start_time"] = _dt.datetime.strptime(start_s, _fmt)
+                        break
+                    except ValueError:
+                        continue
+            if end_s:
+                for _fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d"):
+                    try:
+                        kwargs["end_time"] = _dt.datetime.strptime(end_s, _fmt)
+                        break
+                    except ValueError:
+                        continue
             if ent:
                 kwargs["enterprise_name"] = ent
-            if ver:
-                kwargs["version"] = ver
             if module:
                 kwargs["industry_chain_module"] = module
+            if ver:
+                kwargs["version"] = ver
             manager.query_history(**kwargs)
 
         elif choice == "12":
-            print("导出条件 (留空导出全部):")
-            ent = input("核心企业名称: ").strip()
+            print("导出条件 (留空导出全部, 筛选条件与查询一致):")
+            start_s = input("发布起始时间 (YYYY-MM-DD 或 YYYY-MM-DD HH:MM:SS): ").strip()
+            end_s = input("发布结束时间 (YYYY-MM-DD 或 YYYY-MM-DD HH:MM:SS): ").strip()
+            ent = input("核心企业名称 (支持模糊): ").strip()
+            module = input("产业链模块 (支持模糊): ").strip()
+            ver = input("版本号 (精确匹配): ").strip()
             kwargs = {}
+            import datetime as _dt
+            if start_s:
+                for _fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d"):
+                    try:
+                        kwargs["start_time"] = _dt.datetime.strptime(start_s, _fmt)
+                        break
+                    except ValueError:
+                        continue
+            if end_s:
+                for _fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d"):
+                    try:
+                        kwargs["end_time"] = _dt.datetime.strptime(end_s, _fmt)
+                        break
+                    except ValueError:
+                        continue
             if ent:
                 kwargs["enterprise_name"] = ent
+            if module:
+                kwargs["industry_chain_module"] = module
+            if ver:
+                kwargs["version"] = ver
             manager.export_records(**kwargs)
 
         elif choice == "13":
@@ -210,6 +253,27 @@ def interactive_mode():
 
         elif choice == "14":
             run_demo(manager)
+
+        elif choice == "15":
+            manager.start_weekly_scheduler()
+            print("每周一自动生成周报调度器已启动（每周一09:00自动运行）")
+
+        elif choice == "16":
+            manager.stop_weekly_scheduler()
+            print("每周一自动生成周报调度器已停止")
+
+        elif choice == "17":
+            manager.start_weekly_scheduler()
+            print("\n进入长期运行模式：")
+            print("  - 每周一09:00 自动生成周报")
+            print("  - 保持所有资金监控线程活跃")
+            print("按 Ctrl+C 退出此模式并返回菜单\n")
+            try:
+                import time
+                while True:
+                    time.sleep(1)
+            except KeyboardInterrupt:
+                print("\n已退出长期运行模式，返回菜单")
 
         else:
             print("无效选择，请重新输入")

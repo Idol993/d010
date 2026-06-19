@@ -33,6 +33,23 @@ def _dt_to_str(dt):
     return dt.strftime("%Y-%m-%d %H:%M:%S")
 
 
+def _safe_parse_datetime(val: str):
+    if not isinstance(val, str) or not val:
+        return None
+    try:
+        return datetime.datetime.fromisoformat(val)
+    except (ValueError, TypeError):
+        pass
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S",
+                "%Y-%m-%d %H:%M:%S.%f", "%Y-%m-%dT%H:%M:%S.%f",
+                "%Y-%m-%d %H:%M", "%Y-%m-%d"):
+        try:
+            return datetime.datetime.strptime(val, fmt)
+        except ValueError:
+            continue
+    return None
+
+
 def _record_to_dict(record):
     d = {}
     for f in record.__dataclass_fields__:
@@ -79,8 +96,9 @@ class HistoryQuery:
         version: str = "",
         risk_level: str = "",
         status: str = "",
+        records: list = None,
     ) -> list:
-        result = self._records
+        result = list(records) if records is not None else list(self._records)
 
         if start_time is not None:
             result = [r for r in result if r.created_at is not None and r.created_at >= start_time]
@@ -176,28 +194,47 @@ class HistoryQuery:
             self._records = []
             return
 
-        with open(RELEASE_DB_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
+        try:
+            with open(RELEASE_DB_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception as e:
+            print(f"[警告] 加载发布记录失败: {e}, 将从空记录开始")
+            self._records = []
+            return
 
         self._records = []
-        for item in data:
-            record = ReleaseRecord()
-            for key, val in item.items():
-                if not hasattr(record, key):
-                    continue
-                if key == "risk_level" and isinstance(val, str):
-                    for rl in RiskLevel:
-                        if rl.value == val:
-                            val = rl
-                            break
-                elif key == "status" and isinstance(val, str):
-                    for rs in ReleaseStatus:
-                        if rs.value == val:
-                            val = rs
-                            break
-                elif key in ("created_at", "approved_at", "released_at", "rolled_back_at") and isinstance(val, str) and val:
-                    val = datetime.datetime.strptime(val, "%Y-%m-%d %H:%M:%S")
-                elif key in ("created_at", "approved_at", "released_at", "rolled_back_at") and val == "":
-                    val = None
-                setattr(record, key, val)
-            self._records.append(record)
+        for idx, item in enumerate(data):
+            try:
+                record = ReleaseRecord()
+                for key, val in item.items():
+                    if not hasattr(record, key):
+                        continue
+                    if key == "risk_level" and isinstance(val, str):
+                        matched = False
+                        for rl in RiskLevel:
+                            if rl.value == val:
+                                val = rl
+                                matched = True
+                                break
+                        if not matched:
+                            val = RiskLevel.ROUTINE
+                    elif key == "status" and isinstance(val, str):
+                        matched = False
+                        for rs in ReleaseStatus:
+                            if rs.value == val:
+                                val = rs
+                                matched = True
+                                break
+                        if not matched:
+                            val = ReleaseStatus.PENDING_CHECK
+                    elif key in ("created_at", "approved_at", "released_at", "rolled_back_at") and isinstance(val, str) and val:
+                        val = _safe_parse_datetime(val)
+                    elif key in ("created_at", "approved_at", "released_at", "rolled_back_at") and val == "":
+                        val = None
+                    elif isinstance(val, dict) and hasattr(record, key):
+                        continue
+                    setattr(record, key, val)
+                self._records.append(record)
+            except Exception as e:
+                print(f"[警告] 跳过第 {idx} 条发布记录: {e}")
+                continue

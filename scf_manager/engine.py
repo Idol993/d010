@@ -19,10 +19,11 @@ from .drill import RollbackDrillSystem
 from .reporter import WeeklyReporter
 from .history import HistoryQuery
 from .compliance_logger import ComplianceLogger
+import threading as _th
 
 
 class SCFReleaseManager:
-    def __init__(self):
+    def __init__(self, enable_scheduler: bool = False):
         os.makedirs(DATA_DIR, exist_ok=True)
         self._compliance_logger = ComplianceLogger()
         self._enterprises: dict[str, CoreEnterprise] = {}
@@ -37,8 +38,53 @@ class SCFReleaseManager:
         self._history = HistoryQuery()
         self._load_enterprises()
         self._rolled_back_releases = set()
-        self._monitor_lock = __import__('threading').Lock()
+        self._monitor_lock = _th.Lock()
         self._load_releases()
+        self._scheduler_thread = None
+        self._scheduler_stop = _th.Event()
+        self._last_weekly_report_date = None
+        if enable_scheduler:
+            self.start_weekly_scheduler()
+
+    def start_weekly_scheduler(self):
+        if self._scheduler_thread and self._scheduler_thread.is_alive():
+            return
+
+        def _scheduler_loop():
+            print("[调度器] 每周一自动生成周报 已启动 (每周一09:00运行)")
+            while not self._scheduler_stop.is_set():
+                try:
+                    now = datetime.now()
+                    is_monday = now.weekday() == 0
+                    hour_match = now.hour == 9 and now.minute < 5
+                    today_str = now.strftime("%Y-%m-%d")
+
+                    should_run = is_monday and hour_match and (self._last_weekly_report_date != today_str)
+
+                    if should_run:
+                        print(f"\n[调度器] {today_str} 星期一09:00 自动生成周报...")
+                        self.generate_weekly_report()
+                        self._last_weekly_report_date = today_str
+                except Exception as _err:
+                    print(f"[调度器] 异常: {_err}")
+                for _ in range(60):
+                    if self._scheduler_stop.is_set():
+                        break
+                    import time as _tm
+                    _tm.sleep(1)
+
+        self._scheduler_thread = _th.Thread(target=_scheduler_loop, daemon=True)
+        self._scheduler_thread.start()
+
+    def stop_weekly_scheduler(self):
+        self._scheduler_stop.set()
+        if self._scheduler_thread:
+            self._scheduler_thread.join(timeout=3)
+
+    def trigger_weekly_report_now(self):
+        print("[调度器] 手动触发本周周报生成...")
+        return self.generate_weekly_report()
+
 
     def _load_enterprises(self):
         if not os.path.exists(ENTERPRISE_DB_FILE):
@@ -93,41 +139,69 @@ class SCFReleaseManager:
         if not os.path.exists(RELEASE_DB_FILE):
             self._releases = []
             return
-        with open(RELEASE_DB_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
+        try:
+            with open(RELEASE_DB_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception as e:
+            print(f"[警告] 加载发布记录失败: {e}, 将从空记录开始")
+            self._releases = []
+            return
         self._releases = []
-        for item in data:
-            record = ReleaseRecord()
-            for key, val in item.items():
-                if not hasattr(record, key):
-                    continue
-                if key == "risk_level" and isinstance(val, str):
-                    for rl in RiskLevel:
-                        if rl.value == val:
-                            val = rl
-                            break
-                elif key == "status" and isinstance(val, str):
-                    for rs in ReleaseStatus:
-                        if rs.value == val:
-                            val = rs
-                            break
-                elif key in ("created_at", "approved_at", "released_at", "rolled_back_at"):
-                    if isinstance(val, str) and val:
-                        try:
-                            val = datetime.fromisoformat(val)
-                        except ValueError:
-                            try:
-                                val = datetime.strptime(val, "%Y-%m-%d %H:%M:%S")
-                            except ValueError:
-                                val = None
-                    else:
-                        val = None
-                elif key == "pre_check_result" and isinstance(val, dict):
-                    val = self._deserialize_pre_check_result(val)
-                elif key == "approval_workflow" and isinstance(val, dict):
-                    val = self._deserialize_approval_workflow(val)
-                setattr(record, key, val)
-            self._releases.append(record)
+        for idx, item in enumerate(data):
+            try:
+                record = ReleaseRecord()
+                for key, val in item.items():
+                    if not hasattr(record, key):
+                        continue
+                    if key == "risk_level" and isinstance(val, str):
+                        matched = False
+                        for rl in RiskLevel:
+                            if rl.value == val:
+                                val = rl
+                                matched = True
+                                break
+                        if not matched:
+                            val = RiskLevel.ROUTINE
+                    elif key == "status" and isinstance(val, str):
+                        matched = False
+                        for rs in ReleaseStatus:
+                            if rs.value == val:
+                                val = rs
+                                matched = True
+                                break
+                        if not matched:
+                            val = ReleaseStatus.PENDING_CHECK
+                    elif key in ("created_at", "approved_at", "released_at", "rolled_back_at"):
+                        if isinstance(val, str) and val:
+                            val = self._safe_parse_datetime(val)
+                        else:
+                            val = None
+                    elif key == "pre_check_result" and isinstance(val, dict):
+                        val = self._deserialize_pre_check_result(val)
+                    elif key == "approval_workflow" and isinstance(val, dict):
+                        val = self._deserialize_approval_workflow(val)
+                    setattr(record, key, val)
+                self._releases.append(record)
+            except Exception as e:
+                print(f"[警告] 跳过第 {idx} 条发布记录加载: {e}")
+                continue
+
+    @staticmethod
+    def _safe_parse_datetime(val):
+        if not isinstance(val, str) or not val:
+            return None
+        try:
+            return datetime.fromisoformat(val)
+        except (ValueError, TypeError):
+            pass
+        for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S",
+                    "%Y-%m-%d %H:%M:%S.%f", "%Y-%m-%dT%H:%M:%S.%f",
+                    "%Y-%m-%d %H:%M", "%Y-%m-%d"):
+            try:
+                return datetime.strptime(val, fmt)
+            except ValueError:
+                continue
+        return None
 
     def _deserialize_pre_check_result(self, data: dict):
         from .models import CheckItem, CheckItemStatus
@@ -135,16 +209,17 @@ class SCFReleaseManager:
         for item_data in data.get("items", []):
             status = item_data.get("status", "")
             if isinstance(status, str):
+                matched = False
                 for cs in CheckItemStatus:
                     if cs.value == status:
                         status = cs
+                        matched = True
                         break
+                if not matched:
+                    status = CheckItemStatus.PENDING
             checked_at = item_data.get("checked_at")
             if isinstance(checked_at, str) and checked_at:
-                try:
-                    checked_at = datetime.fromisoformat(checked_at)
-                except ValueError:
-                    checked_at = None
+                checked_at = SCFReleaseManager._safe_parse_datetime(checked_at)
             items.append(CheckItem(
                 name=item_data.get("name", ""),
                 status=status if isinstance(status, CheckItemStatus) else CheckItemStatus.PENDING,
@@ -153,10 +228,7 @@ class SCFReleaseManager:
             ))
         checked_at = data.get("checked_at")
         if isinstance(checked_at, str) and checked_at:
-            try:
-                checked_at = datetime.fromisoformat(checked_at)
-            except ValueError:
-                checked_at = None
+            checked_at = SCFReleaseManager._safe_parse_datetime(checked_at)
         return PreCheckResult(
             release_id=data.get("release_id", ""),
             items=items,
@@ -170,22 +242,27 @@ class SCFReleaseManager:
         for step_data in data.get("steps", []):
             role = step_data.get("role", "")
             if isinstance(role, str):
+                matched = False
                 for ar in ApprovalRole:
                     if ar.value == role:
                         role = ar
+                        matched = True
                         break
+                if not matched:
+                    role = ApprovalRole.BUSINESS
             status = step_data.get("status", "")
             if isinstance(status, str):
+                matched = False
                 for as_ in ApprovalStatus:
                     if as_.value == status:
                         status = as_
+                        matched = True
                         break
+                if not matched:
+                    status = ApprovalStatus.PENDING
             approved_at = step_data.get("approved_at")
             if isinstance(approved_at, str) and approved_at:
-                try:
-                    approved_at = datetime.fromisoformat(approved_at)
-                except ValueError:
-                    approved_at = None
+                approved_at = SCFReleaseManager._safe_parse_datetime(approved_at)
             steps.append(ApprovalStep(
                 id=step_data.get("id", ""),
                 release_id=step_data.get("release_id", ""),
@@ -203,10 +280,7 @@ class SCFReleaseManager:
                     break
         created_at = data.get("created_at")
         if isinstance(created_at, str) and created_at:
-            try:
-                created_at = datetime.fromisoformat(created_at)
-            except ValueError:
-                created_at = None
+            created_at = SCFReleaseManager._safe_parse_datetime(created_at)
         return ApprovalWorkflow(
             id=data.get("id", ""),
             release_id=data.get("release_id", ""),
@@ -529,44 +603,18 @@ class SCFReleaseManager:
         return {"pdf": pdf_path, "excel": excel_path, "stats": stats}
 
     def query_history(self, **kwargs) -> list:
-        results = self._filter_releases(**kwargs)
+        results = self._history.query(records=self._releases, **kwargs)
         print(f"\n查询到 {len(results)} 条发布记录")
         for r in results:
             print(f"  {r.id} | {r.version} | {r.enterprise_name} | {r.status.value} | {r.risk_level.value}")
         return results
 
-    def _filter_releases(self, **kwargs) -> list:
-        import datetime as _dt
-        results = self._releases
-        start_time = kwargs.get("start_time")
-        end_time = kwargs.get("end_time")
-        enterprise_name = kwargs.get("enterprise_name", "")
-        industry_chain_module = kwargs.get("industry_chain_module", "")
-        version = kwargs.get("version", "")
-        risk_level = kwargs.get("risk_level", "")
-        status = kwargs.get("status", "")
-
-        if start_time:
-            results = [r for r in results if r.created_at and r.created_at >= start_time]
-        if end_time:
-            results = [r for r in results if r.created_at and r.created_at <= end_time]
-        if enterprise_name:
-            results = [r for r in results if enterprise_name.lower() in r.enterprise_name.lower()]
-        if industry_chain_module:
-            results = [r for r in results if industry_chain_module.lower() in r.industry_chain_module.lower()]
-        if version:
-            results = [r for r in results if r.version == version]
-        if risk_level:
-            results = [r for r in results if r.risk_level.value == risk_level]
-        if status:
-            results = [r for r in results if r.status.value == status]
-        return results
-
     def export_records(self, records: list = None, **query_kwargs) -> dict:
         if records is None:
-            records = self._filter_releases(**query_kwargs)
+            records = self._history.query(records=self._releases, **query_kwargs)
         paths = self._history.batch_export(records)
         print(f"\n批量导出完成:")
+        print(f"  共 {len(records)} 条记录")
         print(f"  CSV: {paths['csv_path']}")
         print(f"  JSON: {paths['json_path']}")
 
@@ -651,6 +699,15 @@ class SCFReleaseManager:
             print(f"\n  回滚记录:")
             for rb in rollbacks:
                 print(f"    {rb.id} | 原因: {rb.trigger_reason} | 状态: {rb.status.value}")
+                print(f"    影响范围: {rb.impact_scope}")
+                print(f"    资金异常原因:")
+                for line in rb.fund_anomaly_reason.split('\n'):
+                    print(f"      {line}")
+                print(f"    合规风险说明: {rb.compliance_risk_desc}")
+                if rb.notified_roles:
+                    print(f"    通知角色: {', '.join(rb.notified_roles)}")
+                if rb.completed_at:
+                    print(f"    完成时间: {rb.completed_at.strftime('%Y-%m-%d %H:%M:%S')}")
                 if rb.report_path:
                     print(f"    报告: {rb.report_path}")
 
@@ -664,6 +721,7 @@ class SCFReleaseManager:
 
     def shutdown(self):
         self._monitor.stop_all()
+        self.stop_weekly_scheduler()
         self._save_releases()
         self._save_enterprises()
-        print("系统已安全关闭，所有监控已停止")
+        print("系统已安全关闭，所有监控、调度器已停止")

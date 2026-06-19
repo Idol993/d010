@@ -1,0 +1,21 @@
+[
+  {
+    "id": "OLD-0002",
+    "version": "v2.1.0",
+    "enterprise_id": "ENT002",
+    "enterprise_name": "比亚迪股份有限公司",
+    "industry_chain_module": "新能源-电池",
+    "risk_level": "紧急资金故障",
+    "status": "已回滚",
+    "pre_check_result": null,
+    "approval_workflow": null,
+    "grayscale_phase": 0,
+    "loan_amount": 2000000,
+    "description": "旧数据2",
+    "created_at": "2025-03-20 14:30:12",
+    "approved_at": "2025-03-20 14:31:00",
+    "released_at": "2025-03-20 00:00:00",
+    "rolled_back_at": "2025-03-20 15:00:00",
+    "stable_version": "v2.0.5"
+  }
+]

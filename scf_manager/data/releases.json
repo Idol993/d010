@@ -1,286 +1,59 @@
 [
   {
-    "id": "e08e47fd",
-    "version": "v3.2.0",
+    "id": "OLD-0001",
+    "version": "v1.0.0",
     "enterprise_id": "ENT001",
     "enterprise_name": "华为技术有限公司",
-    "industry_chain_module": "通信-5G基站",
+    "industry_chain_module": "通信-基站",
     "risk_level": "常规放款迭代",
-    "status": "已恢复稳定版本",
-    "pre_check_result": {
-      "release_id": "e08e47fd",
-      "items": [
-        {
-          "name": "核心企业授信校验",
-          "status": "通过",
-          "detail": "可用授信 30000000.00，融资金额 5000000.00，授信充足",
-          "checked_at": "2026-06-19T09:20:16.733691"
-        },
-        {
-          "name": "应收账款真实性",
-          "status": "通过",
-          "detail": "企业风险评级 A，应收账款真实性验证通过",
-          "checked_at": "2026-06-19T09:20:16.733691"
-        },
-        {
-          "name": "供应链对账准确率",
-          "status": "警告",
-          "detail": "对账准确率 96.69%，接近阈值",
-          "checked_at": "2026-06-19T09:20:16.733691"
-        },
-        {
-          "name": "监管资金合规",
-          "status": "通过",
-          "detail": "企业风险评级 A，资金合规检查通过",
-          "checked_at": "2026-06-19T09:20:16.733691"
-        }
-      ],
-      "passed": true,
-      "checked_at": "2026-06-19T09:20:16.733691"
-    },
-    "approval_workflow": {
-      "id": "85813c60",
-      "release_id": "e08e47fd",
-      "risk_level": "常规放款迭代",
-      "steps": [
-        {
-          "id": "ceaa2aa3",
-          "release_id": "e08e47fd",
-          "role": "业务审批人",
-          "approver_name": "业务主管-张明",
-          "status": "已通过",
-          "comment": "自动审批通过",
-          "approved_at": "2026-06-19T09:20:16.734768"
-        },
-        {
-          "id": "e671662c",
-          "release_id": "e08e47fd",
-          "role": "风控审批人",
-          "approver_name": "风控主管-李华",
-          "status": "已通过",
-          "comment": "自动审批通过",
-          "approved_at": "2026-06-19T09:20:16.734771"
-        },
-        {
-          "id": "4bf8e092",
-          "release_id": "e08e47fd",
-          "role": "资金审批人",
-          "approver_name": "资金主管-王强",
-          "status": "已通过",
-          "comment": "自动审批通过",
-          "approved_at": "2026-06-19T09:20:16.734773"
-        },
-        {
-          "id": "46bc6466",
-          "release_id": "e08e47fd",
-          "role": "合规审批人",
-          "approver_name": "合规主管-赵磊",
-          "status": "已通过",
-          "comment": "自动审批通过",
-          "approved_at": "2026-06-19T09:20:16.734774"
-        }
-      ],
-      "current_step_index": 4,
-      "created_at": "2026-06-19T09:20:16.733986"
-    },
-    "grayscale_phase": 0,
-    "loan_amount": 5000000,
-    "description": "华为5G基站供应链融资-常规迭代",
-    "created_at": "2026-06-19T09:20:16.733206",
-    "approved_at": "2026-06-19T09:20:16.734811",
-    "released_at": null,
-    "rolled_back_at": "2026-06-19T09:20:16.741361",
-    "stable_version": "v3.2.0-stable-backup"
+    "status": "全量发布",
+    "pre_check_result": null,
+    "approval_workflow": null,
+    "grayscale_phase": 4,
+    "loan_amount": 3000000,
+    "description": "旧数据1",
+    "created_at": "2025-01-15T10:23:45.123456",
+    "approved_at": "2025-01-15T10:25:00",
+    "released_at": "2025-01-15T10:30:00",
+    "rolled_back_at": null,
+    "stable_version": "v1.0.0-stable"
   },
   {
-    "id": "aecd3016",
-    "version": "v3.2.1-hotfix",
+    "id": "OLD-0002",
+    "version": "v2.1.0",
     "enterprise_id": "ENT002",
     "enterprise_name": "比亚迪股份有限公司",
     "industry_chain_module": "新能源-电池",
     "risk_level": "紧急资金故障",
-    "status": "前置检查未通过",
-    "pre_check_result": {
-      "release_id": "aecd3016",
-      "items": [
-        {
-          "name": "核心企业授信校验",
-          "status": "通过",
-          "detail": "可用授信 15000000.00，融资金额 8000000.00，授信充足",
-          "checked_at": "2026-06-19T09:20:16.740677"
-        },
-        {
-          "name": "应收账款真实性",
-          "status": "通过",
-          "detail": "企业风险评级 A，应收账款真实性验证通过",
-          "checked_at": "2026-06-19T09:20:16.740677"
-        },
-        {
-          "name": "供应链对账准确率",
-          "status": "未通过",
-          "detail": "对账准确率 94.55%，低于要求",
-          "checked_at": "2026-06-19T09:20:16.740677"
-        },
-        {
-          "name": "监管资金合规",
-          "status": "通过",
-          "detail": "企业风险评级 A，资金合规检查通过",
-          "checked_at": "2026-06-19T09:20:16.740677"
-        }
-      ],
-      "passed": false,
-      "checked_at": "2026-06-19T09:20:16.740677"
-    },
+    "status": "已回滚",
+    "pre_check_result": null,
     "approval_workflow": null,
     "grayscale_phase": 0,
-    "loan_amount": 8000000,
-    "description": "比亚迪电池供应链紧急融资",
-    "created_at": "2026-06-19T09:20:16.738825",
-    "approved_at": null,
-    "released_at": null,
-    "rolled_back_at": null,
-    "stable_version": "v3.2.1-hotfix-stable-backup"
+    "loan_amount": 2000000,
+    "description": "旧数据2",
+    "created_at": "2025-03-20T14:30:12",
+    "approved_at": "2025-03-20T14:31:00",
+    "released_at": "2025-03-20T00:00:00",
+    "rolled_back_at": "2025-03-20T15:00:00.500000",
+    "stable_version": "v2.0.5"
   },
   {
-    "id": "9e265151",
-    "version": "v3.3.0-risk",
-    "enterprise_id": "ENT004",
-    "enterprise_name": "三一重工股份有限公司",
-    "industry_chain_module": "工程机械-挖掘机",
-    "risk_level": "核心企业风险",
-    "status": "待审批",
-    "pre_check_result": {
-      "release_id": "9e265151",
-      "items": [
-        {
-          "name": "核心企业授信校验",
-          "status": "通过",
-          "detail": "可用授信 3000000.00，融资金额 3000000.00，授信充足",
-          "checked_at": "2026-06-19T09:20:16.745714"
-        },
-        {
-          "name": "应收账款真实性",
-          "status": "警告",
-          "detail": "企业风险评级 C，应收账款真实性存在风险",
-          "checked_at": "2026-06-19T09:20:16.745714"
-        },
-        {
-          "name": "供应链对账准确率",
-          "status": "警告",
-          "detail": "对账准确率 95.62%，接近阈值",
-          "checked_at": "2026-06-19T09:20:16.745714"
-        },
-        {
-          "name": "监管资金合规",
-          "status": "警告",
-          "detail": "企业风险评级 C，资金合规存在风险",
-          "checked_at": "2026-06-19T09:20:16.745714"
-        }
-      ],
-      "passed": true,
-      "checked_at": "2026-06-19T09:20:16.745714"
-    },
-    "approval_workflow": {
-      "id": "c149a391",
-      "release_id": "9e265151",
-      "risk_level": "核心企业风险",
-      "steps": [
-        {
-          "id": "7865e063",
-          "release_id": "9e265151",
-          "role": "风控审批人",
-          "approver_name": "风控主管-李华",
-          "status": "待审批",
-          "comment": "",
-          "approved_at": null
-        },
-        {
-          "id": "59f03fb1",
-          "release_id": "9e265151",
-          "role": "合规审批人",
-          "approver_name": "合规主管-赵磊",
-          "status": "待审批",
-          "comment": "",
-          "approved_at": null
-        },
-        {
-          "id": "b1f11fa4",
-          "release_id": "9e265151",
-          "role": "业务审批人",
-          "approver_name": "业务主管-张明",
-          "status": "待审批",
-          "comment": "",
-          "approved_at": null
-        },
-        {
-          "id": "c7644269",
-          "release_id": "9e265151",
-          "role": "资金审批人",
-          "approver_name": "资金主管-王强",
-          "status": "待审批",
-          "comment": "",
-          "approved_at": null
-        }
-      ],
-      "current_step_index": 0,
-      "created_at": "2026-06-19T09:20:16.746314"
-    },
-    "grayscale_phase": 0,
-    "loan_amount": 3000000,
-    "description": "三一重工风险评级调整发布",
-    "created_at": "2026-06-19T09:20:16.744507",
-    "approved_at": null,
-    "released_at": null,
-    "rolled_back_at": null,
-    "stable_version": "v3.3.0-risk-stable-backup"
-  },
-  {
-    "id": "f45c7065",
-    "version": "v3.3.1",
-    "enterprise_id": "ENT005",
-    "enterprise_name": "某D级风险企业",
-    "industry_chain_module": "化工-塑料",
+    "id": "BAD-0003",
+    "version": "v9.9.9",
+    "enterprise_id": "ENT999",
+    "enterprise_name": "坏数据企业",
+    "industry_chain_module": "测试",
     "risk_level": "常规放款迭代",
-    "status": "前置检查未通过",
-    "pre_check_result": {
-      "release_id": "f45c7065",
-      "items": [
-        {
-          "name": "核心企业授信校验",
-          "status": "未通过",
-          "detail": "可用授信 200000.00，融资金额 1000000.00，授信不足",
-          "checked_at": "2026-06-19T09:20:16.748235"
-        },
-        {
-          "name": "应收账款真实性",
-          "status": "未通过",
-          "detail": "企业风险评级 D，应收账款真实性验证未通过",
-          "checked_at": "2026-06-19T09:20:16.748235"
-        },
-        {
-          "name": "供应链对账准确率",
-          "status": "警告",
-          "detail": "对账准确率 95.91%，接近阈值",
-          "checked_at": "2026-06-19T09:20:16.748235"
-        },
-        {
-          "name": "监管资金合规",
-          "status": "未通过",
-          "detail": "企业风险评级 D，资金合规检查未通过",
-          "checked_at": "2026-06-19T09:20:16.748235"
-        }
-      ],
-      "passed": false,
-      "checked_at": "2026-06-19T09:20:16.748235"
-    },
+    "status": "待前置检查",
+    "pre_check_result": null,
     "approval_workflow": null,
     "grayscale_phase": 0,
-    "loan_amount": 1000000,
-    "description": "D级风险企业融资申请",
-    "created_at": "2026-06-19T09:20:16.747728",
+    "loan_amount": 100000,
+    "description": "这条应该被跳过或空字段",
+    "created_at": null,
     "approved_at": null,
     "released_at": null,
     "rolled_back_at": null,
-    "stable_version": "v3.3.1-stable-backup"
+    "stable_version": ""
   }
 ]
