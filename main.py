@@ -30,10 +30,18 @@ def print_menu():
     print("  16. 发布风险看板")
     print("  17. 导出风险看板 Excel")
     print("  18. 重新生成回滚报告 (PDF+TXT)")
-    print("  19. 运行完整演示流程")
-    print("  20. 启动每周一自动生成周报调度器")
-    print("  21. 停止每周一自动生成周报调度器")
-    print("  22. 切换到长期运行模式 (保持调度器、监控器活跃)")
+    print("  19. 补录回滚报告 (从发布记录反推)")
+    print("  20. 历史周报列表 (报表中心)")
+    print("  21. 删除历史周报")
+    print("  22. 重新生成历史周报 (覆盖/另存)")
+    print("  23. 重发失败通知")
+    print("  24. 重发指定通知")
+    print("  25. 审计时间线 (按发布ID)")
+    print("  26. 导出审计时间线 CSV")
+    print("  27. 运行完整演示流程")
+    print("  28. 启动每周一自动生成周报调度器")
+    print("  29. 停止每周一自动生成周报调度器")
+    print("  30. 切换到长期运行模式 (保持调度器、监控器活跃)")
     print("  0.  退出")
     print(f"{'='*60}")
 
@@ -299,17 +307,72 @@ def interactive_mode():
                 manager.regenerate_rollback_report(release_id=rid)
 
         elif choice == "19":
-            run_demo(manager)
+            rid = input("发布ID: ").strip()
+            manager.supplement_rollback_report(rid)
 
         elif choice == "20":
+            manager.list_weekly_reports()
+
+        elif choice == "21":
+            date_str = input("要删除的周报周期起始日期 (YYYY-MM-DD): ").strip()
+            import datetime as _dt
+            week_start = None
+            for _fmt in ("%Y-%m-%d", "%Y-%m-%d %H:%M:%S", "%Y%m%d"):
+                try:
+                    week_start = _dt.datetime.strptime(date_str, _fmt)
+                    break
+                except ValueError:
+                    continue
+            if week_start:
+                manager.delete_weekly_report(week_start)
+            else:
+                print("[错误] 日期格式不正确")
+
+        elif choice == "22":
+            date_str = input("要重新生成的周报周期起始日期 (YYYY-MM-DD): ").strip()
+            import datetime as _dt
+            week_start = None
+            for _fmt in ("%Y-%m-%d", "%Y-%m-%d %H:%M:%S", "%Y%m%d"):
+                try:
+                    week_start = _dt.datetime.strptime(date_str, _fmt)
+                    break
+                except ValueError:
+                    continue
+            if not week_start:
+                print("[错误] 日期格式不正确")
+                continue
+            mode = input("重新生成模式: 1=覆盖原文件, 2=另存为新文件 (默认2): ").strip() or "2"
+            mode_str = "overwrite" if mode == "1" else "save_as"
+            manager.regenerate_weekly_report(week_start, mode=mode_str)
+
+        elif choice == "23":
+            rid = input("发布ID (留空重发所有失败通知): ").strip()
+            manager.resend_failed_notifications(release_id=rid)
+
+        elif choice == "24":
+            nid = input("通知ID: ").strip()
+            manager.resend_notification(nid)
+
+        elif choice == "25":
+            rid = input("发布ID: ").strip()
+            manager.show_audit_timeline(rid)
+
+        elif choice == "26":
+            rid = input("发布ID: ").strip()
+            manager.export_audit_timeline_csv(rid)
+
+        elif choice == "27":
+            run_demo(manager)
+
+        elif choice == "28":
             manager.start_weekly_scheduler()
             print("每周一自动生成周报调度器已启动（每周一09:00自动运行）")
 
-        elif choice == "21":
+        elif choice == "29":
             manager.stop_weekly_scheduler()
             print("每周一自动生成周报调度器已停止")
 
-        elif choice == "22":
+        elif choice == "30":
             manager.start_weekly_scheduler()
             print("\n进入长期运行模式：")
             print("  - 每周一09:00 自动生成周报")

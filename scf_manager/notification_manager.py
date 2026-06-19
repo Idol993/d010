@@ -109,6 +109,7 @@ class NotificationManager:
         drill_id: str = "",
         notification_type: str = "",
         status: str = "",
+        parent_id: str = "",
     ) -> list:
         results = list(self._records)
         if release_id:
@@ -119,10 +120,90 @@ class NotificationManager:
             results = [r for r in results if r.notification_type.value == notification_type]
         if status:
             results = [r for r in results if r.status.value == status]
+        if parent_id:
+            results = [r for r in results if r.parent_id == parent_id]
         return results
+
+    def get_by_id(self, notification_id: str):
+        for r in self._records:
+            if r.id == notification_id:
+                return r
+        return None
 
     def get_by_release(self, release_id: str) -> list:
         return self.query(release_id=release_id)
+
+    def get_resend_history(self, notification_id: str) -> list:
+        results = []
+        current = self.get_by_id(notification_id)
+        while current:
+            results.append(current)
+            children = [r for r in self._records if r.parent_id == current.id and r.is_resend]
+            if children:
+                current = children[0]
+            else:
+                break
+        return results
+
+    def resend_notification(self, notification_id: str) -> list:
+        original = self.get_by_id(notification_id)
+        if not original:
+            raise ValueError(f"通知不存在: {notification_id}")
+
+        resent = []
+
+        def _resend_one(orig):
+            new_record = NotificationRecord(
+                id=str(uuid.uuid4())[:8],
+                release_id=orig.release_id,
+                drill_id=orig.drill_id,
+                notification_type=orig.notification_type,
+                recipient_role=orig.recipient_role,
+                recipient_name=orig.recipient_name,
+                content_summary=orig.content_summary,
+                sent_at=datetime.datetime.now(),
+                parent_id=orig.id,
+                is_resend=True,
+            )
+            success = random.random() < NOTIFICATION_DELIVERY_SUCCESS_RATE
+            if success:
+                new_record.status = NotificationStatus.SENT
+                new_record.delivery_result = "成功(重发)"
+            else:
+                new_record.status = NotificationStatus.SEND_FAILED
+                new_record.delivery_result = "网络超时或接收方离线(重发)"
+            self._records.append(new_record)
+            resent.append(new_record)
+            return new_record
+
+        _resend_one(original)
+
+        self._save()
+
+        if self._compliance_logger:
+            self._compliance_logger.log(
+                operation="通知重发",
+                operator="NotificationManager",
+                details=(
+                    f"重发通知 {notification_id} -> {len(resent)} 条新记录"
+                ),
+                release_id=original.release_id,
+            )
+
+        return resent
+
+    def resend_failed(self, release_id: str = "", drill_id: str = "") -> list:
+        failed = self.query(
+            release_id=release_id,
+            drill_id=drill_id,
+            status=NotificationStatus.SEND_FAILED.value,
+        )
+        failed_originals = [f for f in failed if not f.is_resend]
+        all_resent = []
+        for f in failed_originals:
+            resent = self.resend_notification(f.id)
+            all_resent.extend(resent)
+        return all_resent
 
     def _save(self):
         dir_path = os.path.dirname(NOTIFICATION_DB_FILE)
@@ -141,6 +222,8 @@ class NotificationManager:
                 "content_summary": record.content_summary,
                 "sent_at": record.sent_at.isoformat() if record.sent_at else "",
                 "delivery_result": record.delivery_result,
+                "parent_id": record.parent_id,
+                "is_resend": record.is_resend,
             })
         with open(NOTIFICATION_DB_FILE, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
@@ -186,6 +269,8 @@ class NotificationManager:
                     content_summary=item.get("content_summary", ""),
                     sent_at=sent_at,
                     delivery_result=item.get("delivery_result", "成功"),
+                    parent_id=item.get("parent_id", ""),
+                    is_resend=item.get("is_resend", False),
                 ))
             except Exception as e:
                 print(f"[警告] 跳过通知记录 {item.get('id', '?')}: {e}")

@@ -1,6 +1,6 @@
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from .models import (
     CoreEnterprise,
@@ -29,6 +29,8 @@ from .history import HistoryQuery
 from .compliance_logger import ComplianceLogger
 from .notification_manager import NotificationManager
 from .dashboard import RiskDashboard
+from .report_archive import WeeklyReportArchive
+from .audit_timeline import AuditTimeline
 import threading as _th
 
 
@@ -48,6 +50,8 @@ class SCFReleaseManager:
         self._reporter = WeeklyReporter()
         self._history = HistoryQuery()
         self._dashboard = RiskDashboard()
+        self._report_archive = WeeklyReportArchive()
+        self._audit_timeline = AuditTimeline(self._compliance_logger)
         self._load_enterprises()
         self._rolled_back_releases = set()
         self._monitor_lock = _th.Lock()
@@ -602,7 +606,10 @@ class SCFReleaseManager:
         if pdf_path:
             print(f"\nPDF 报告已生成: {pdf_path}")
 
-        excel_path = self._reporter.generate_excel_report(releases, rollbacks, monitoring_data, stats)
+        excel_path = self._reporter.generate_excel_report(
+            releases, rollbacks, monitoring_data, stats,
+            week_start=stats.week_start, week_end=stats.week_end,
+        )
         if excel_path:
             print(f"Excel 报表已生成: {excel_path}")
 
@@ -650,7 +657,10 @@ class SCFReleaseManager:
         if pdf_path:
             print(f"\nPDF 报告已生成: {pdf_path}")
 
-        excel_path = self._reporter.generate_excel_report(releases, rollbacks, monitoring_data, stats)
+        excel_path = self._reporter.generate_excel_report(
+            releases, rollbacks, monitoring_data, stats,
+            week_start=stats.week_start, week_end=stats.week_end,
+        )
         if excel_path:
             print(f"Excel 报表已生成: {excel_path}")
 
@@ -732,6 +742,169 @@ class SCFReleaseManager:
             if n.content_summary:
                 print(f"    摘要: {n.content_summary[:80]}")
         return notifs
+
+    def resend_notification(self, notification_id: str):
+        try:
+            resent = self._notification_manager.resend_notification(notification_id)
+            print(f"\n通知重发完成，共生成 {len(resent)} 条新记录:")
+            for n in resent:
+                ts = n.sent_at.strftime("%Y-%m-%d %H:%M:%S") if n.sent_at else ""
+                status_icon = "✓" if n.status.value == "已发送" else "✗"
+                print(f"  {status_icon} [{ts}] {n.id} -> {n.recipient_role} [{n.delivery_result}]")
+            return resent
+        except ValueError as e:
+            print(f"[错误] {e}")
+            return []
+
+    def resend_failed_notifications(self, release_id: str = ""):
+        resent = self._notification_manager.resend_failed(release_id=release_id)
+        print(f"\n失败通知重发完成，共重发 {len(resent)} 条")
+        return resent
+
+    def supplement_rollback_report(self, release_id: str):
+        release = self._find_release(release_id)
+        if not release:
+            print(f"[错误] 未找到发布记录: {release_id}")
+            return None
+
+        if release.status not in (ReleaseStatus.ROLLED_BACK, ReleaseStatus.STABLE_RESTORED) and not release.rolled_back_at:
+            print(f"[提示] 发布 {release_id} 未回滚，无需补录回滚报告")
+            return None
+
+        has_rb = self._rollback_engine.has_rollback_for_release(release_id)
+        monitoring_data = self._monitor.get_latest_metrics(release_id, 20)
+
+        if has_rb:
+            rbs = self._rollback_engine.get_records(release_id)
+            rb = rbs[-1]
+            if rb.report_path:
+                print(f"[提示] 发布 {release_id} 已有回滚报告，执行重新生成")
+            else:
+                print(f"[提示] 发布 {release_id} 有回滚记录但无报告，补生成报告")
+            result = self._rollback_engine.regenerate_report(
+                rollback_id=rb.id,
+                release=release,
+                monitoring_metrics=monitoring_data,
+            )
+        else:
+            print(f"[提示] 发布 {release_id} 无独立回滚记录，从发布信息补录回滚并生成报告")
+            result = self._rollback_engine.supplement_rollback_from_release(
+                release=release,
+                monitoring_metrics=monitoring_data,
+            )
+
+        print(f"\n回滚报告已生成:")
+        print(f"  TXT: {result.report_path}")
+        if hasattr(result, 'report_pdf_path') and result.report_pdf_path:
+            print(f"  PDF: {result.report_pdf_path}")
+        if hasattr(result, 'is_supplementary') and result.is_supplementary:
+            print(f"  (注: 此为补录回滚记录)")
+
+        return result
+
+    def list_weekly_reports(self):
+        reports = self._report_archive.list_reports()
+        print(f"\n历史周报列表 ({len(reports)} 份):")
+        print(f"{'='*70}")
+        for i, r in enumerate(reports, 1):
+            ws = r["week_start"].strftime("%Y-%m-%d") if r["week_start"] else "未知"
+            we = r["week_end"].strftime("%Y-%m-%d") if r["week_end"] else "未知"
+            gt = r["generated_at"].strftime("%Y-%m-%d %H:%M:%S") if r["generated_at"] else "未知"
+            types = "/".join(r["file_types"])
+            print(f"{i:2d}. 周期: {ws} ~ {we}")
+            print(f"    生成时间: {gt}  |  类型: {types}")
+        print(f"{'='*70}")
+        return reports
+
+    def delete_weekly_report(self, week_start):
+        deleted = self._report_archive.delete_report(week_start)
+        if deleted > 0:
+            ws = week_start.strftime("%Y-%m-%d") if hasattr(week_start, 'strftime') else str(week_start)
+            print(f"已删除 {ws} 周期的周报 ({deleted} 个文件)")
+            self._compliance_logger.log(
+                operation="删除历史周报",
+                operator="SCFReleaseManager",
+                details=f"删除周期 {ws} 的周报，共 {deleted} 个文件",
+            )
+        else:
+            print("未找到对应周期的周报")
+        return deleted
+
+    def regenerate_weekly_report(self, week_start, mode: str = "save_as"):
+        week_end = week_start + timedelta(days=7)
+        releases = self._releases
+        rollbacks = self._rollback_engine.get_records()
+        monitoring_data = self._monitor._monitoring_data
+
+        stats = self._reporter.calculate_weekly_stats(
+            releases, rollbacks, monitoring_data,
+            week_start=week_start, week_end=week_end,
+        )
+
+        existing = self._report_archive.get_by_week_start(week_start)
+
+        if mode == "overwrite" and existing:
+            self._report_archive.delete_report(week_start)
+
+        pdf_path = self._reporter.generate_pdf_report(stats)
+        excel_path = self._reporter.generate_excel_report(
+            releases, rollbacks, monitoring_data, stats,
+            week_start=week_start, week_end=week_end,
+        )
+
+        ws = week_start.strftime("%Y-%m-%d") if hasattr(week_start, 'strftime') else str(week_start)
+        action = "覆盖" if mode == "overwrite" else "另存"
+        print(f"\n周报已重新生成 ({action}):")
+        if pdf_path:
+            print(f"  PDF: {pdf_path}")
+        if excel_path:
+            print(f"  Excel: {excel_path}")
+
+        self._compliance_logger.log(
+            operation="重新生成周报",
+            operator="SCFReleaseManager",
+            details=f"重新生成周期 {ws} 的周报，模式: {mode}",
+        )
+
+        return {"pdf": pdf_path, "excel": excel_path, "stats": stats}
+
+    def show_audit_timeline(self, release_id: str):
+        release = self._find_release(release_id)
+        if not release:
+            print(f"[错误] 未找到发布记录: {release_id}")
+            return []
+
+        rollbacks = self._rollback_engine.get_records(release_id)
+        monitoring_data = [m for m in self._monitor._monitoring_data if m.release_id == release_id]
+        notifications = self._notification_manager.query(release_id=release_id)
+        compliance_logs = [l for l in self._compliance_logger.query(release_id=release_id)]
+
+        events = self._audit_timeline.build_timeline(
+            release=release,
+            rollbacks=rollbacks,
+            monitoring_data=monitoring_data,
+            notifications=notifications,
+            compliance_logs=compliance_logs,
+        )
+
+        print(f"\n发布 {release_id} 审计时间线")
+        print(f"{'='*60}")
+        self._audit_timeline.print_timeline(events)
+        return events
+
+    def export_audit_timeline_csv(self, release_id: str, file_path: str = "") -> str:
+        events = self.show_audit_timeline(release_id)
+        if not events:
+            return ""
+
+        if not file_path:
+            import datetime as _dt
+            ts = _dt.datetime.now().strftime("%Y%m%d_%H%M%S")
+            file_path = f"{DATA_DIR}/audit_timeline_{release_id}_{ts}.csv"
+
+        path = self._audit_timeline.export_csv(events, file_path)
+        print(f"\n审计时间线已导出: {path}")
+        return path
 
     def query_history(self, **kwargs) -> list:
         results = self._history.query(records=self._releases, **kwargs)
@@ -827,9 +1000,10 @@ class SCFReleaseManager:
 
         rollbacks = self._rollback_engine.get_records(release_id)
         if rollbacks:
-            print(f"\n  回滚记录:")
+            print(f"\n  回滚记录 ({len(rollbacks)} 条):")
             for rb in rollbacks:
-                print(f"    {rb.id} | 原因: {rb.trigger_reason} | 状态: {rb.status.value}")
+                supp_tag = " [补录]" if hasattr(rb, 'is_supplementary') and rb.is_supplementary else ""
+                print(f"    {rb.id}{supp_tag} | 原因: {rb.trigger_reason} | 状态: {rb.status.value}")
                 print(f"    影响范围: {rb.impact_scope}")
                 print(f"    资金异常原因:")
                 for line in rb.fund_anomaly_reason.split('\n'):
@@ -843,14 +1017,29 @@ class SCFReleaseManager:
                     print(f"    TXT 报告: {rb.report_path}")
                 if hasattr(rb, 'report_pdf_path') and rb.report_pdf_path:
                     print(f"    PDF 报告: {rb.report_pdf_path}")
+                if not rb.report_path:
+                    print(f"    [提示] 此回滚记录暂无报告，可使用菜单 [重新生成回滚报告] 补生成")
+        else:
+            if record.status in (ReleaseStatus.ROLLED_BACK, ReleaseStatus.STABLE_RESTORED) or record.rolled_back_at:
+                print(f"\n  [提示] 发布已回滚但无独立回滚记录，可使用菜单 [重新生成回滚报告] 补录回滚并生成报告")
 
         notifications = self._notification_manager.query(release_id=release_id)
         if notifications:
-            print(f"\n  通知流水 ({len(notifications)} 条):")
-            for n in notifications:
+            original_notifs = [n for n in notifications if not n.is_resend]
+            resend_notifs = [n for n in notifications if n.is_resend]
+            print(f"\n  通知流水 ({len(notifications)} 条, 其中原始 {len(original_notifs)} 条, 重发 {len(resend_notifs)} 条):")
+            for n in original_notifs:
                 ts = n.sent_at.strftime("%Y-%m-%d %H:%M:%S") if n.sent_at else ""
                 status_icon = "✓" if n.status.value == "已发送" else "✗"
-                print(f"    {status_icon} [{ts}] {n.notification_type.value} -> {n.recipient_role} ({n.recipient_name}) [{n.delivery_result}]")
+                resend_count = len([r for r in resend_notifs if r.parent_id == n.id])
+                resend_info = f" (已重发 {resend_count} 次)" if resend_count > 0 else ""
+                print(f"    {status_icon} [{ts}] {n.notification_type.value} -> {n.recipient_role} ({n.recipient_name}) [{n.delivery_result}]{resend_info}")
+                # 显示重发记录
+                children = [r for r in resend_notifs if r.parent_id == n.id]
+                for child in children:
+                    cts = child.sent_at.strftime("%Y-%m-%d %H:%M:%S") if child.sent_at else ""
+                    cicon = "✓" if child.status.value == "已发送" else "✗"
+                    print(f"      ↳ {cicon} [{cts}] 重发 [{child.delivery_result}] (ID: {child.id})")
 
         print(f"{'='*60}")
 

@@ -8,6 +8,7 @@
     "compliance_risk_desc": "资金回滚触发合规审查, 原因: 测试回滚, 需关注监管资金安全及应收账款真实性",
     "status": "已完成",
     "report_path": "scf_manager/data/rollback_report_eb233a4d.txt",
+    "report_pdf_path": "",
     "created_at": "2026-06-19T13:15:01.715956",
     "completed_at": "2026-06-19T13:15:01.716210",
     "notified_roles": [
@@ -15,6 +16,27 @@
       "风控审批人",
       "资金审批人",
       "核心企业对接人"
-    ]
+    ],
+    "is_supplementary": false
+  },
+  {
+    "id": "sb_OLD-0002_补录",
+    "release_id": "OLD-0002",
+    "trigger_reason": "历史数据补录",
+    "impact_scope": "核心企业 比亚迪股份有限公司 相关放款策略, 涉及产业链模块 新能源-电池",
+    "fund_anomaly_reason": "未提供监控指标数据, 无法分析资金异常原因",
+    "compliance_risk_desc": "历史数据补录回滚, 原稳定版本: v2.0.5",
+    "status": "已完成",
+    "report_path": "scf_manager/data/rollback_report_sb_OLD-0002_补录_regen_20260619_141607.txt",
+    "report_pdf_path": "",
+    "created_at": "2025-03-20T15:00:00.500000",
+    "completed_at": "2025-03-20T15:00:00.500000",
+    "notified_roles": [
+      "业务审批人",
+      "风控审批人",
+      "资金审批人",
+      "核心企业对接人"
+    ],
+    "is_supplementary": true
   }
 ]

@@ -140,6 +140,81 @@ class RollbackEngine:
         self._save()
         return record
 
+    def has_rollback_for_release(self, release_id: str) -> bool:
+        return any(r.release_id == release_id for r in self._records)
+
+    def get_records(self, release_id: str = "") -> list:
+        if release_id:
+            return [r for r in self._records if r.release_id == release_id]
+        return list(self._records)
+
+    def supplement_rollback_from_release(
+        self,
+        release: ReleaseRecord,
+        monitoring_metrics=None,
+    ) -> RollbackRecord:
+        if self.has_rollback_for_release(release.id):
+            existing = [r for r in self._records if r.release_id == release.id]
+            return existing[0]
+
+        if release.status not in (ReleaseStatus.ROLLED_BACK, ReleaseStatus.STABLE_RESTORED) and not release.rolled_back_at:
+            raise ValueError(f"发布 {release.id} 未回滚，无法补录回滚记录")
+
+        if monitoring_metrics is None:
+            monitoring_metrics = []
+
+        record = RollbackRecord(
+            id=f"sb_{release.id}_补录",
+            release_id=release.id,
+            trigger_reason="历史数据补录",
+            status=RollbackStatus.COMPLETED,
+            created_at=release.rolled_back_at or datetime.now(),
+            completed_at=release.rolled_back_at or datetime.now(),
+            is_supplementary=True,
+        )
+
+        record.impact_scope = (
+            f"核心企业 {release.enterprise_name} 相关放款策略, "
+            f"涉及产业链模块 {release.industry_chain_module}"
+        )
+
+        record.fund_anomaly_reason = self._analyze_fund_anomaly(monitoring_metrics)
+
+        record.compliance_risk_desc = (
+            f"历史数据补录回滚, 原稳定版本: {release.stable_version or '未知'}"
+        )
+
+        notified = []
+        for role in NOTIFICATION_ROLES_ON_ROLLBACK:
+            notified.append(role.value)
+        notified.append("核心企业对接人")
+        record.notified_roles = notified
+
+        report = self._generate_report(record, release, monitoring_metrics)
+        os.makedirs(DATA_DIR, exist_ok=True)
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        txt_path = f"{DATA_DIR}/rollback_report_{record.id}_supp_{ts}.txt"
+        with open(txt_path, "w", encoding="utf-8") as f:
+            f.write(report)
+        record.report_path = txt_path
+
+        pdf_path = self._generate_pdf_report(record, release, monitoring_metrics)
+        if pdf_path:
+            record.report_pdf_path = pdf_path
+
+        self._records.append(record)
+        self._save()
+
+        if self._compliance_logger:
+            self._compliance_logger.log(
+                operation="回滚记录补录",
+                operator="RollbackEngine",
+                details=f"为发布 {release.id} 补录回滚记录并生成报告",
+                release_id=release.id,
+            )
+
+        return record
+
     def _generate_pdf_report(self, record, release, monitoring_metrics) -> str:
         try:
             from fpdf import FPDF
@@ -357,6 +432,7 @@ class RollbackEngine:
                 "created_at": record.created_at.isoformat() if record.created_at else "",
                 "completed_at": record.completed_at.isoformat() if record.completed_at else "",
                 "notified_roles": record.notified_roles,
+                "is_supplementary": record.is_supplementary,
             })
         with open(ROLLBACK_DB_FILE, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
@@ -405,6 +481,7 @@ class RollbackEngine:
                     created_at=created_at,
                     completed_at=completed_at,
                     notified_roles=item.get("notified_roles", []),
+                    is_supplementary=item.get("is_supplementary", False),
                 ))
             except Exception as e:
                 print(f"[警告] 跳过回滚记录 {item.get('id','?')}: {e}")

@@ -152,6 +152,7 @@ class RollbackRecord:
     created_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
     notified_roles: list = field(default_factory=list)
+    is_supplementary: bool = False
 
 
 @dataclass
@@ -202,6 +203,8 @@ class NotificationRecord:
     content_summary: str = ""
     sent_at: Optional[datetime] = None
     delivery_result: str = "成功"
+    parent_id: str = ""
+    is_resend: bool = False
 
 
 @dataclass

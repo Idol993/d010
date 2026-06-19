@@ -97,10 +97,10 @@ class WeeklyReporter:
         )
 
         top_rollback_enterprises = self._calc_top_rollback_enterprises(
-            week_releases, rollbacks, week_start, week_end
+            releases, rollbacks, week_start, week_end
         )
         top_alert_modules = self._calc_top_alert_modules(
-            week_releases, week_monitoring
+            releases, week_monitoring
         )
 
         return WeeklyStats(
@@ -268,6 +268,8 @@ class WeeklyReporter:
         rollbacks: list,
         monitoring_data: list,
         stats: WeeklyStats,
+        week_start=None,
+        week_end=None,
     ) -> str:
         try:
             from openpyxl import Workbook
@@ -275,6 +277,27 @@ class WeeklyReporter:
         except ImportError:
             print("Warning: openpyxl is not installed. Excel report generation skipped.")
             return ""
+
+        if week_start is None:
+            week_start = stats.week_start
+        if week_end is None:
+            week_end = stats.week_end
+
+        week_releases = [
+            r for r in releases
+            if r.created_at and week_start and week_end
+            and week_start <= r.created_at < week_end
+        ]
+        week_rollbacks = [
+            rb for rb in rollbacks
+            if rb.created_at and week_start and week_end
+            and week_start <= rb.created_at < week_end
+        ]
+        week_monitoring = [
+            m for m in monitoring_data
+            if m.timestamp and week_start and week_end
+            and week_start <= m.timestamp < week_end
+        ]
 
         wb = Workbook()
 
@@ -313,7 +336,7 @@ class WeeklyReporter:
             cell = ws2.cell(row=1, column=col, value=header)
             cell.font = Font(bold=True)
             ws2.column_dimensions[chr(64 + col)].width = width
-        for row_idx, r in enumerate(releases, 2):
+        for row_idx, r in enumerate(week_releases, 2):
             ws2.cell(row=row_idx, column=1, value=r.id)
             ws2.cell(row=row_idx, column=2, value=r.version)
             ws2.cell(row=row_idx, column=3, value=r.enterprise_name)
@@ -324,51 +347,71 @@ class WeeklyReporter:
             ws2.cell(row=row_idx, column=8, value=r.approved_at.strftime("%Y-%m-%d %H:%M") if r.approved_at else "")
             ws2.cell(row=row_idx, column=9, value=r.released_at.strftime("%Y-%m-%d %H:%M") if r.released_at else "")
 
-        ws3 = wb.create_sheet("监控数据")
+        ws3 = wb.create_sheet("回滚明细")
+        release_map = {r.id: r for r in releases}
         headers3 = [
-            "ID", "发布ID", "企业ID", "时间", "放款成功率", "到账延迟(分)", "应收异常率", "逾期风险分", "告警触发",
+            "回滚ID", "发布ID", "企业", "触发原因", "状态", "回滚时间", "报告路径",
         ]
-        col_widths3 = [12, 12, 12, 20, 15, 15, 15, 15, 12]
+        col_widths3 = [12, 12, 20, 30, 12, 20, 40]
         for col, (header, width) in enumerate(zip(headers3, col_widths3), 1):
             cell = ws3.cell(row=1, column=col, value=header)
             cell.font = Font(bold=True)
             ws3.column_dimensions[chr(64 + col)].width = width
-        for row_idx, m in enumerate(monitoring_data, 2):
-            ws3.cell(row=row_idx, column=1, value=m.id)
-            ws3.cell(row=row_idx, column=2, value=m.release_id)
-            ws3.cell(row=row_idx, column=3, value=m.enterprise_id)
-            ws3.cell(row=row_idx, column=4, value=m.timestamp.strftime("%Y-%m-%d %H:%M") if m.timestamp else "")
-            ws3.cell(row=row_idx, column=5, value=m.loan_success_rate)
-            ws3.cell(row=row_idx, column=6, value=m.fund_arrival_delay_min)
-            ws3.cell(row=row_idx, column=7, value=m.ar_anomaly_rate)
-            ws3.cell(row=row_idx, column=8, value=m.overdue_risk_score)
-            ws3.cell(row=row_idx, column=9, value="是" if m.alert_triggered else "否")
+        for row_idx, rb in enumerate(week_rollbacks, 2):
+            rel = release_map.get(rb.release_id)
+            ws3.cell(row=row_idx, column=1, value=rb.id)
+            ws3.cell(row=row_idx, column=2, value=rb.release_id)
+            ws3.cell(row=row_idx, column=3, value=rel.enterprise_name if rel else "")
+            ws3.cell(row=row_idx, column=4, value=rb.trigger_reason)
+            ws3.cell(row=row_idx, column=5, value=rb.status.value if rb.status else "")
+            ws3.cell(row=row_idx, column=6, value=rb.created_at.strftime("%Y-%m-%d %H:%M") if rb.created_at else "")
+            ws3.cell(row=row_idx, column=7, value=rb.report_path if hasattr(rb, 'report_path') else "")
+
+        ws4 = wb.create_sheet("监控数据")
+        headers4 = [
+            "ID", "发布ID", "企业ID", "时间", "放款成功率", "到账延迟(分)", "应收异常率", "逾期风险分", "告警触发",
+        ]
+        col_widths4 = [12, 12, 12, 20, 15, 15, 15, 15, 12]
+        for col, (header, width) in enumerate(zip(headers4, col_widths4), 1):
+            cell = ws4.cell(row=1, column=col, value=header)
+            cell.font = Font(bold=True)
+            ws4.column_dimensions[chr(64 + col)].width = width
+        for row_idx, m in enumerate(week_monitoring, 2):
+            ws4.cell(row=row_idx, column=1, value=m.id)
+            ws4.cell(row=row_idx, column=2, value=m.release_id)
+            ws4.cell(row=row_idx, column=3, value=m.enterprise_id)
+            ws4.cell(row=row_idx, column=4, value=m.timestamp.strftime("%Y-%m-%d %H:%M") if m.timestamp else "")
+            ws4.cell(row=row_idx, column=5, value=m.loan_success_rate)
+            ws4.cell(row=row_idx, column=6, value=m.fund_arrival_delay_min)
+            ws4.cell(row=row_idx, column=7, value=m.ar_anomaly_rate)
+            ws4.cell(row=row_idx, column=8, value=m.overdue_risk_score)
+            ws4.cell(row=row_idx, column=9, value="是" if m.alert_triggered else "否")
 
         if stats.top_rollback_enterprises:
-            ws4 = wb.create_sheet("回滚Top企业")
-            headers4 = ["排名", "核心企业", "回滚次数"]
-            col_widths4 = [8, 30, 15]
-            for col, (header, width) in enumerate(zip(headers4, col_widths4), 1):
-                cell = ws4.cell(row=1, column=col, value=header)
-                cell.font = Font(bold=True)
-                ws4.column_dimensions[chr(64 + col)].width = width
-            for row_idx, item in enumerate(stats.top_rollback_enterprises, 2):
-                ws4.cell(row=row_idx, column=1, value=row_idx - 1)
-                ws4.cell(row=row_idx, column=2, value=item["enterprise"])
-                ws4.cell(row=row_idx, column=3, value=item["rollback_count"])
-
-        if stats.top_alert_modules:
-            ws5 = wb.create_sheet("告警Top模块")
-            headers5 = ["排名", "产业链模块", "告警次数"]
+            ws5 = wb.create_sheet("回滚Top企业")
+            headers5 = ["排名", "核心企业", "回滚次数"]
             col_widths5 = [8, 30, 15]
             for col, (header, width) in enumerate(zip(headers5, col_widths5), 1):
                 cell = ws5.cell(row=1, column=col, value=header)
                 cell.font = Font(bold=True)
                 ws5.column_dimensions[chr(64 + col)].width = width
-            for row_idx, item in enumerate(stats.top_alert_modules, 2):
+            for row_idx, item in enumerate(stats.top_rollback_enterprises, 2):
                 ws5.cell(row=row_idx, column=1, value=row_idx - 1)
-                ws5.cell(row=row_idx, column=2, value=item["module"])
-                ws5.cell(row=row_idx, column=3, value=item["alert_count"])
+                ws5.cell(row=row_idx, column=2, value=item["enterprise"])
+                ws5.cell(row=row_idx, column=3, value=item["rollback_count"])
+
+        if stats.top_alert_modules:
+            ws6 = wb.create_sheet("告警Top模块")
+            headers6 = ["排名", "产业链模块", "告警次数"]
+            col_widths6 = [8, 30, 15]
+            for col, (header, width) in enumerate(zip(headers6, col_widths6), 1):
+                cell = ws6.cell(row=1, column=col, value=header)
+                cell.font = Font(bold=True)
+                ws6.column_dimensions[chr(64 + col)].width = width
+            for row_idx, item in enumerate(stats.top_alert_modules, 2):
+                ws6.cell(row=row_idx, column=1, value=row_idx - 1)
+                ws6.cell(row=row_idx, column=2, value=item["module"])
+                ws6.cell(row=row_idx, column=3, value=item["alert_count"])
 
         week_start_str = stats.week_start.strftime("%Y%m%d") if stats.week_start else "unknown"
         output_path = os.path.join(WEEKLY_REPORT_DIR, f"weekly_data_{week_start_str}.xlsx")

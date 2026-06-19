@@ -94,5 +94,45 @@
     "details": "周期: 2026-03-21 13:49:27.194398 ~ 2026-06-19 13:49:27.194410",
     "release_id": "",
     "timestamp": "2026-06-19T13:49:27.535581"
+  },
+  {
+    "id": "3e604e7e",
+    "operation": "审计时间线导出",
+    "operator": "AuditTimeline",
+    "details": "导出时间线 CSV: scf_manager/data/audit_timeline_OLD-0001_20260619_141447.csv, 共 2 条事件",
+    "release_id": "",
+    "timestamp": "2026-06-19T14:14:47.546178"
+  },
+  {
+    "id": "20874de0",
+    "operation": "回滚记录补录",
+    "operator": "RollbackEngine",
+    "details": "为发布 OLD-0002 补录回滚记录并生成报告",
+    "release_id": "OLD-0002",
+    "timestamp": "2026-06-19T14:14:47.719444"
+  },
+  {
+    "id": "424fe46f",
+    "operation": "审计时间线导出",
+    "operator": "AuditTimeline",
+    "details": "导出时间线 CSV: scf_manager/data/audit_timeline_OLD-0001_20260619_141607.csv, 共 2 条事件",
+    "release_id": "",
+    "timestamp": "2026-06-19T14:16:07.864524"
+  },
+  {
+    "id": "a7a4c01d",
+    "operation": "回滚报告重新生成",
+    "operator": "RollbackEngine",
+    "details": "回滚 sb_OLD-0002_补录 报告已重新生成 (TXT+PDF)",
+    "release_id": "OLD-0002",
+    "timestamp": "2026-06-19T14:16:08.044192"
+  },
+  {
+    "id": "b823b74d",
+    "operation": "重新生成周报",
+    "operator": "SCFReleaseManager",
+    "details": "重新生成周期 2026-05-20 的周报，模式: save_as",
+    "release_id": "",
+    "timestamp": "2026-06-19T14:16:08.247490"
   }
 ]
