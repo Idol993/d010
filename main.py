@@ -136,7 +136,7 @@ def interactive_mode():
 
     while True:
         print_menu()
-        choice = input("\n请选择操作 (0-14): ").strip()
+        choice = input("\n请选择操作 (0-30): ").strip()
 
         if choice == "0":
             manager.shutdown()
@@ -311,7 +311,40 @@ def interactive_mode():
             manager.supplement_rollback_report(rid)
 
         elif choice == "20":
-            manager.list_weekly_reports()
+            print("历史周报筛选 (留空跳过):")
+            ws_from = input("周期起始从 (YYYY-MM-DD): ").strip()
+            ws_to = input("周期起始至 (YYYY-MM-DD): ").strip()
+            rtype = input("报表类型 (PDF/Excel, 留空全部): ").strip()
+            import datetime as _dt
+            kwargs = {}
+            if ws_from:
+                for _fmt in ("%Y-%m-%d", "%Y%m%d"):
+                    try:
+                        kwargs["week_start_from"] = _dt.datetime.strptime(ws_from, _fmt)
+                        break
+                    except ValueError:
+                        continue
+            if ws_to:
+                for _fmt in ("%Y-%m-%d", "%Y%m%d"):
+                    try:
+                        kwargs["week_start_to"] = _dt.datetime.strptime(ws_to, _fmt)
+                        break
+                    except ValueError:
+                        continue
+            if rtype:
+                kwargs["report_type"] = rtype
+            reports = manager.list_weekly_reports(**kwargs)
+            if reports:
+                print("\n操作提示: 输入序号可打开对应文件路径")
+                idx = input("序号 (留空跳过): ").strip()
+                if idx and idx.isdigit():
+                    i = int(idx) - 1
+                    if 0 <= i < len(reports):
+                        r = reports[i]
+                        if r["pdf_path"]:
+                            print(f"  PDF: {r['pdf_path']}")
+                        if r["excel_path"]:
+                            print(f"  Excel: {r['excel_path']}")
 
         elif choice == "21":
             date_str = input("要删除的周报周期起始日期 (YYYY-MM-DD): ").strip()

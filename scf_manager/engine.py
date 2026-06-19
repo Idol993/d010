@@ -802,8 +802,11 @@ class SCFReleaseManager:
 
         return result
 
-    def list_weekly_reports(self):
-        reports = self._report_archive.list_reports()
+    def list_weekly_reports(self, **kwargs):
+        if kwargs:
+            reports = self._report_archive.query(**kwargs)
+        else:
+            reports = self._report_archive.list_reports()
         print(f"\n历史周报列表 ({len(reports)} 份):")
         print(f"{'='*70}")
         for i, r in enumerate(reports, 1):

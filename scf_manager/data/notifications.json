@@ -9,7 +9,9 @@
     "status": "已发送",
     "content_summary": "测试内容摘要",
     "sent_at": "2026-06-19T13:25:54.163650",
-    "delivery_result": "成功"
+    "delivery_result": "成功",
+    "parent_id": "",
+    "is_resend": false
   },
   {
     "id": "11e85288",
@@ -21,7 +23,9 @@
     "status": "已发送",
     "content_summary": "批量测试通知",
     "sent_at": "2026-06-19T13:25:54.165234",
-    "delivery_result": "成功"
+    "delivery_result": "成功",
+    "parent_id": "",
+    "is_resend": false
   },
   {
     "id": "3b918a27",
@@ -33,7 +37,9 @@
     "status": "已发送",
     "content_summary": "批量测试通知",
     "sent_at": "2026-06-19T13:25:54.165490",
-    "delivery_result": "成功"
+    "delivery_result": "成功",
+    "parent_id": "",
+    "is_resend": false
   },
   {
     "id": "49e990eb",
@@ -45,7 +51,9 @@
     "status": "已发送",
     "content_summary": "批量测试通知",
     "sent_at": "2026-06-19T13:25:54.165664",
-    "delivery_result": "成功"
+    "delivery_result": "成功",
+    "parent_id": "",
+    "is_resend": false
   },
   {
     "id": "021a675d",
@@ -57,6 +65,50 @@
     "status": "已发送",
     "content_summary": "",
     "sent_at": "2026-06-19T13:26:27.050347",
-    "delivery_result": "成功"
+    "delivery_result": "成功",
+    "parent_id": "",
+    "is_resend": false
+  },
+  {
+    "id": "a6c040ad",
+    "release_id": "test-001",
+    "drill_id": "",
+    "notification_type": "自动回滚通知",
+    "recipient_role": "测试角色",
+    "recipient_name": "测试人",
+    "status": "已发送",
+    "content_summary": "测试内容摘要",
+    "sent_at": "2026-06-19T14:23:57.907255",
+    "delivery_result": "成功(重发)",
+    "parent_id": "962c6a70",
+    "is_resend": true
+  },
+  {
+    "id": "5245f007",
+    "release_id": "test-001",
+    "drill_id": "",
+    "notification_type": "自动回滚通知",
+    "recipient_role": "测试角色",
+    "recipient_name": "测试人",
+    "status": "已发送",
+    "content_summary": "测试内容摘要",
+    "sent_at": "2026-06-19T14:24:26.216991",
+    "delivery_result": "成功(重发)",
+    "parent_id": "962c6a70",
+    "is_resend": true
+  },
+  {
+    "id": "12c41b5d",
+    "release_id": "test-001",
+    "drill_id": "",
+    "notification_type": "自动回滚通知",
+    "recipient_role": "测试角色",
+    "recipient_name": "测试人",
+    "status": "已发送",
+    "content_summary": "测试内容摘要",
+    "sent_at": "2026-06-19T14:25:19.724210",
+    "delivery_result": "成功(重发)",
+    "parent_id": "962c6a70",
+    "is_resend": true
   }
 ]
