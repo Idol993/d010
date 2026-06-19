@@ -1,0 +1,13 @@
+[
+  {
+    "id": "169b092f",
+    "release_id": "0f79a82b",
+    "enterprise_id": "ENT001",
+    "timestamp": "2026-06-19T13:46:55.024192",
+    "loan_success_rate": 91.91,
+    "fund_arrival_delay_min": 31.81,
+    "ar_anomaly_rate": 2.89,
+    "overdue_risk_score": 25.29,
+    "alert_triggered": true
+  }
+]

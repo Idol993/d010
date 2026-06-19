@@ -14,5 +14,85 @@
     "details": "发布 TEST-RB-001 已回滚, 原因: 测试回滚",
     "release_id": "TEST-RB-001",
     "timestamp": "2026-06-19T13:15:01.716221"
+  },
+  {
+    "id": "e6a0b9bc",
+    "operation": "通知发送",
+    "operator": "NotificationManager",
+    "details": "通知 021a675d 发送给 测试角色 测试人, 类型: 发布审批通知, 结果: 成功",
+    "release_id": "test-compliance",
+    "timestamp": "2026-06-19T13:26:27.050657"
+  },
+  {
+    "id": "5c3d9472",
+    "operation": "生成自定义周期周报",
+    "operator": "SCFReleaseManager",
+    "details": "周期: 2026-05-20 13:46:02.255636 ~ 2026-06-19 13:46:02.255646",
+    "release_id": "",
+    "timestamp": "2026-06-19T13:46:02.628411"
+  },
+  {
+    "id": "2e56bd78",
+    "operation": "导出风险看板",
+    "operator": "SCFReleaseManager",
+    "details": "导出路径: scf_manager/data\\risk_dashboard_20260619_134602.xlsx",
+    "release_id": "",
+    "timestamp": "2026-06-19T13:46:02.635198"
+  },
+  {
+    "id": "67339164",
+    "operation": "提交发布申请",
+    "operator": "SCFReleaseManager",
+    "details": "企业: 华为技术有限公司, 版本: v9.9.9-test, 金额: 5000000, 风险级别: 常规放款迭代",
+    "release_id": "0f79a82b",
+    "timestamp": "2026-06-19T13:46:55.021348"
+  },
+  {
+    "id": "b098277c",
+    "operation": "审批流程生成",
+    "operator": "SCFReleaseManager",
+    "details": "风险级别: 常规放款迭代, 审批步骤: 4",
+    "release_id": "0f79a82b",
+    "timestamp": "2026-06-19T13:46:55.023286"
+  },
+  {
+    "id": "2153dcf1",
+    "operation": "审批通过-启动灰度",
+    "operator": "SCFReleaseManager",
+    "details": "发布 0f79a82b 审批通过, 进入灰度阶段 1",
+    "release_id": "0f79a82b",
+    "timestamp": "2026-06-19T13:46:55.023601"
+  },
+  {
+    "id": "4bae5434",
+    "operation": "提交发布申请",
+    "operator": "SCFReleaseManager",
+    "details": "企业: 华为技术有限公司, 版本: v9.9.9-test, 金额: 5000000, 风险级别: 常规放款迭代",
+    "release_id": "f6d45f72",
+    "timestamp": "2026-06-19T13:47:38.994640"
+  },
+  {
+    "id": "5e6f22ec",
+    "operation": "前置检查未通过",
+    "operator": "SCFReleaseManager",
+    "details": "发布申请因前置检查未通过被拒绝",
+    "release_id": "f6d45f72",
+    "timestamp": "2026-06-19T13:47:38.995921"
+  },
+  {
+    "id": "7cf98e9e",
+    "operation": "导出风险看板",
+    "operator": "SCFReleaseManager",
+    "details": "导出路径: scf_manager/data\\risk_dashboard_20260619_134927.xlsx",
+    "release_id": "",
+    "timestamp": "2026-06-19T13:49:27.193840"
+  },
+  {
+    "id": "26fc1bb3",
+    "operation": "生成自定义周期周报",
+    "operator": "SCFReleaseManager",
+    "details": "周期: 2026-03-21 13:49:27.194398 ~ 2026-06-19 13:49:27.194410",
+    "release_id": "",
+    "timestamp": "2026-06-19T13:49:27.535581"
   }
 ]

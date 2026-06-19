@@ -148,6 +148,7 @@ class RollbackRecord:
     compliance_risk_desc: str = ""
     status: RollbackStatus = RollbackStatus.TRIGGERED
     report_path: str = ""
+    report_pdf_path: str = ""
     created_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
     notified_roles: list = field(default_factory=list)
@@ -175,6 +176,34 @@ class ComplianceLogEntry:
     timestamp: Optional[datetime] = None
 
 
+class NotificationType(Enum):
+    AUTO_ROLLBACK = "自动回滚通知"
+    MANUAL_ROLLBACK = "手动回滚通知"
+    DRILL_TRIGGER = "演练触发通知"
+    RELEASE_APPROVAL = "发布审批通知"
+
+
+class NotificationStatus(Enum):
+    SENT = "已发送"
+    SEND_FAILED = "发送失败"
+    READ = "已读"
+    UNREAD = "未读"
+
+
+@dataclass
+class NotificationRecord:
+    id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
+    release_id: str = ""
+    drill_id: str = ""
+    notification_type: NotificationType = NotificationType.AUTO_ROLLBACK
+    recipient_role: str = ""
+    recipient_name: str = ""
+    status: NotificationStatus = NotificationStatus.SENT
+    content_summary: str = ""
+    sent_at: Optional[datetime] = None
+    delivery_result: str = "成功"
+
+
 @dataclass
 class WeeklyStats:
     week_start: Optional[datetime] = None
@@ -187,3 +216,5 @@ class WeeklyStats:
     avg_loan_success_rate: float = 0.0
     avg_fund_delay: float = 0.0
     release_success_rate: float = 0.0
+    top_rollback_enterprises: list = field(default_factory=list)
+    top_alert_modules: list = field(default_factory=list)

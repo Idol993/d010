@@ -3,15 +3,16 @@ import json
 import os
 import random
 
-from .models import DrillRecord, DrillStatus
-from .config import DRILL_DB_FILE
+from .models import DrillRecord, DrillStatus, NotificationType
+from .config import DRILL_DB_FILE, NOTIFICATION_ROLES_ON_ROLLBACK
 
 
 class RollbackDrillSystem:
 
-    def __init__(self, compliance_logger=None):
+    def __init__(self, compliance_logger=None, notification_manager=None):
         self._records: list[DrillRecord] = []
         self._compliance_logger = compliance_logger
+        self._notification_manager = notification_manager
         self._load()
 
     def create_drill(self, name: str) -> DrillRecord:
@@ -73,6 +74,15 @@ class RollbackDrillSystem:
         )
         record.status = DrillStatus.COMPLETED
         record.completed_at = datetime.datetime.now()
+
+        if self._notification_manager:
+            self._notification_manager.send_batch(
+                release_id="",
+                drill_id=record.id,
+                notification_type=NotificationType.DRILL_TRIGGER,
+                roles=NOTIFICATION_ROLES_ON_ROLLBACK + ["核心企业对接人"],
+                content_summary=f"回滚演练完成: {record.name} - 结论: {outcome}",
+            )
 
         if self._compliance_logger:
             self._compliance_logger.log(

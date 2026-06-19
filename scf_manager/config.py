@@ -57,7 +57,10 @@ MONITOR_DB_FILE = f"{DATA_DIR}/monitoring.json"
 ROLLBACK_DB_FILE = f"{DATA_DIR}/rollbacks.json"
 DRILL_DB_FILE = f"{DATA_DIR}/drills.json"
 COMPLIANCE_LOG_FILE = f"{DATA_DIR}/compliance_logs.json"
+NOTIFICATION_DB_FILE = f"{DATA_DIR}/notifications.json"
 WEEKLY_REPORT_DIR = f"{DATA_DIR}/reports"
+
+NOTIFICATION_DELIVERY_SUCCESS_RATE = 0.95
 
 PRE_CHECK_ITEMS = [
     "核心企业授信校验",

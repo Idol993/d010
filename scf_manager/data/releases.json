@@ -55,5 +55,54 @@
     "released_at": null,
     "rolled_back_at": null,
     "stable_version": ""
+  },
+  {
+    "id": "f6d45f72",
+    "version": "v9.9.9-test",
+    "enterprise_id": "ENT001",
+    "enterprise_name": "华为技术有限公司",
+    "industry_chain_module": "通信-5G基站",
+    "risk_level": "常规放款迭代",
+    "status": "前置检查未通过",
+    "pre_check_result": {
+      "release_id": "f6d45f72",
+      "items": [
+        {
+          "name": "核心企业授信校验",
+          "status": "通过",
+          "detail": "可用授信 30000000.00，融资金额 5000000.00，授信充足",
+          "checked_at": "2026-06-19T13:47:38.995311"
+        },
+        {
+          "name": "应收账款真实性",
+          "status": "通过",
+          "detail": "企业风险评级 A，应收账款真实性验证通过",
+          "checked_at": "2026-06-19T13:47:38.995311"
+        },
+        {
+          "name": "供应链对账准确率",
+          "status": "未通过",
+          "detail": "对账准确率 93.90%，低于要求",
+          "checked_at": "2026-06-19T13:47:38.995311"
+        },
+        {
+          "name": "监管资金合规",
+          "status": "通过",
+          "detail": "企业风险评级 A，资金合规检查通过",
+          "checked_at": "2026-06-19T13:47:38.995311"
+        }
+      ],
+      "passed": false,
+      "checked_at": "2026-06-19T13:47:38.995311"
+    },
+    "approval_workflow": null,
+    "grayscale_phase": 0,
+    "loan_amount": 5000000,
+    "description": "测试用发布-验证第三轮功能",
+    "created_at": "2026-06-19T13:47:38.994605",
+    "approved_at": null,
+    "released_at": null,
+    "rolled_back_at": null,
+    "stable_version": "v9.9.9-test-stable-backup"
   }
 ]

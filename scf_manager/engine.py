@@ -8,6 +8,14 @@ from .models import (
     ReleaseStatus,
     RiskLevel,
     MonitoringMetrics,
+    PreCheckResult,
+    ApprovalWorkflow,
+    CheckItem,
+    CheckItemStatus,
+    ApprovalStep,
+    ApprovalRole,
+    ApprovalStatus,
+    RollbackRecord,
 )
 from .config import ENTERPRISE_DB_FILE, RELEASE_DB_FILE, DATA_DIR
 from .checker import PreConditionChecker
@@ -19,6 +27,8 @@ from .drill import RollbackDrillSystem
 from .reporter import WeeklyReporter
 from .history import HistoryQuery
 from .compliance_logger import ComplianceLogger
+from .notification_manager import NotificationManager
+from .dashboard import RiskDashboard
 import threading as _th
 
 
@@ -32,10 +42,12 @@ class SCFReleaseManager:
         self._approval_gen = ApprovalWorkflowGenerator()
         self._rollout_engine = GrayscaleRolloutEngine()
         self._monitor = FundMonitor()
-        self._rollback_engine = RollbackEngine(self._compliance_logger)
-        self._drill_system = RollbackDrillSystem(self._compliance_logger)
+        self._notification_manager = NotificationManager(self._compliance_logger)
+        self._rollback_engine = RollbackEngine(self._compliance_logger, self._notification_manager)
+        self._drill_system = RollbackDrillSystem(self._compliance_logger, self._notification_manager)
         self._reporter = WeeklyReporter()
         self._history = HistoryQuery()
+        self._dashboard = RiskDashboard()
         self._load_enterprises()
         self._rolled_back_releases = set()
         self._monitor_lock = _th.Lock()
@@ -602,6 +614,125 @@ class SCFReleaseManager:
 
         return {"pdf": pdf_path, "excel": excel_path, "stats": stats}
 
+    def generate_weekly_report_by_date(self, week_start, week_end=None):
+        releases = self._releases
+        rollbacks = self._rollback_engine.get_records()
+        monitoring_data = self._monitor._monitoring_data
+
+        stats = self._reporter.calculate_weekly_stats(
+            releases, rollbacks, monitoring_data,
+            week_start=week_start, week_end=week_end,
+        )
+        print(f"\n{'='*60}")
+        print(f"供应链金融资金安全周报 (自定义周期)")
+        print(f"统计周期: {stats.week_start.strftime('%Y-%m-%d')} ~ {stats.week_end.strftime('%Y-%m-%d')}")
+        print(f"{'='*60}")
+        print(f"  发布总数: {stats.total_releases}")
+        print(f"  成功发布: {stats.successful_releases}")
+        print(f"  失败发布: {stats.failed_releases}")
+        print(f"  回滚次数: {stats.rollback_count}")
+        print(f"  发布成功率: {stats.release_success_rate:.1f}%")
+        print(f"  平均放款成功率: {stats.avg_loan_success_rate:.1f}%")
+        print(f"  放款逾期率: {stats.loan_overdue_rate:.1f}%")
+        print(f"  平均到账延迟: {stats.avg_fund_delay:.1f} 分钟")
+
+        if stats.top_rollback_enterprises:
+            print(f"\n  回滚最多的核心企业 TOP{len(stats.top_rollback_enterprises)}:")
+            for i, item in enumerate(stats.top_rollback_enterprises, 1):
+                print(f"    {i}. {item['enterprise']} ({item['rollback_count']} 次)")
+
+        if stats.top_alert_modules:
+            print(f"\n  告警最多的产业链模块 TOP{len(stats.top_alert_modules)}:")
+            for i, item in enumerate(stats.top_alert_modules, 1):
+                print(f"    {i}. {item['module']} ({item['alert_count']} 次)")
+
+        pdf_path = self._reporter.generate_pdf_report(stats)
+        if pdf_path:
+            print(f"\nPDF 报告已生成: {pdf_path}")
+
+        excel_path = self._reporter.generate_excel_report(releases, rollbacks, monitoring_data, stats)
+        if excel_path:
+            print(f"Excel 报表已生成: {excel_path}")
+
+        self._compliance_logger.log(
+            operation="生成自定义周期周报",
+            operator="SCFReleaseManager",
+            details=f"周期: {stats.week_start} ~ {stats.week_end}",
+        )
+
+        return {"pdf": pdf_path, "excel": excel_path, "stats": stats}
+
+    def show_risk_dashboard(self):
+        self._dashboard.set_data(
+            releases=self._releases,
+            rollbacks=self._rollback_engine.get_records(),
+            monitoring_data=self._monitor._monitoring_data,
+        )
+        self._dashboard.print_dashboard()
+
+    def export_dashboard_excel(self, file_path: str = "") -> str:
+        self._dashboard.set_data(
+            releases=self._releases,
+            rollbacks=self._rollback_engine.get_records(),
+            monitoring_data=self._monitor._monitoring_data,
+        )
+        path = self._dashboard.export_excel(file_path)
+        if path:
+            print(f"风险看板 Excel 已导出: {path}")
+            self._compliance_logger.log(
+                operation="导出风险看板",
+                operator="SCFReleaseManager",
+                details=f"导出路径: {path}",
+            )
+        return path
+
+    def regenerate_rollback_report(self, rollback_id: str = "", release_id: str = ""):
+        if rollback_id:
+            rollback = next((r for r in self._rollback_engine.get_records() if r.id == rollback_id), None)
+        elif release_id:
+            rbs = self._rollback_engine.get_records(release_id)
+            rollback = rbs[-1] if rbs else None
+        else:
+            print("[错误] 请指定回滚ID或发布ID")
+            return None
+
+        if not rollback:
+            print(f"[错误] 未找到回滚记录")
+            return None
+
+        release = self._find_release(rollback.release_id)
+        if not release:
+            print(f"[错误] 未找到关联的发布记录")
+            return None
+
+        monitoring_data = self._monitor.get_latest_metrics(rollback.release_id, 10)
+
+        rollback = self._rollback_engine.regenerate_report(
+            rollback_id=rollback.id,
+            release=release,
+            monitoring_metrics=monitoring_data,
+        )
+
+        print(f"\n回滚报告已重新生成:")
+        print(f"  TXT 报告: {rollback.report_path}")
+        if rollback.report_pdf_path:
+            print(f"  PDF 报告: {rollback.report_pdf_path}")
+
+        return rollback
+
+    def list_notifications(self, release_id: str = "", drill_id: str = ""):
+        notifs = self._notification_manager.query(
+            release_id=release_id, drill_id=drill_id,
+        )
+        print(f"\n通知流水 ({len(notifs)} 条):")
+        for n in notifs:
+            ts = n.sent_at.strftime("%Y-%m-%d %H:%M:%S") if n.sent_at else ""
+            status_icon = "✓" if n.status.value == "已发送" else "✗"
+            print(f"  {status_icon} [{ts}] {n.notification_type.value} -> {n.recipient_role} ({n.recipient_name}) [{n.delivery_result}]")
+            if n.content_summary:
+                print(f"    摘要: {n.content_summary[:80]}")
+        return notifs
+
     def query_history(self, **kwargs) -> list:
         results = self._history.query(records=self._releases, **kwargs)
         print(f"\n查询到 {len(results)} 条发布记录")
@@ -709,7 +840,17 @@ class SCFReleaseManager:
                 if rb.completed_at:
                     print(f"    完成时间: {rb.completed_at.strftime('%Y-%m-%d %H:%M:%S')}")
                 if rb.report_path:
-                    print(f"    报告: {rb.report_path}")
+                    print(f"    TXT 报告: {rb.report_path}")
+                if hasattr(rb, 'report_pdf_path') and rb.report_pdf_path:
+                    print(f"    PDF 报告: {rb.report_pdf_path}")
+
+        notifications = self._notification_manager.query(release_id=release_id)
+        if notifications:
+            print(f"\n  通知流水 ({len(notifications)} 条):")
+            for n in notifications:
+                ts = n.sent_at.strftime("%Y-%m-%d %H:%M:%S") if n.sent_at else ""
+                status_icon = "✓" if n.status.value == "已发送" else "✗"
+                print(f"    {status_icon} [{ts}] {n.notification_type.value} -> {n.recipient_role} ({n.recipient_name}) [{n.delivery_result}]")
 
         print(f"{'='*60}")
 

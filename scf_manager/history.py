@@ -100,11 +100,13 @@ class HistoryQuery:
     ) -> list:
         result = list(records) if records is not None else list(self._records)
 
-        if start_time is not None:
-            result = [r for r in result if r.created_at is not None and r.created_at >= start_time]
-
-        if end_time is not None:
-            result = [r for r in result if r.created_at is not None and r.created_at <= end_time]
+        has_time_filter = start_time is not None or end_time is not None
+        if has_time_filter:
+            result = [r for r in result if r.released_at is not None]
+            if start_time is not None:
+                result = [r for r in result if r.released_at >= start_time]
+            if end_time is not None:
+                result = [r for r in result if r.released_at <= end_time]
 
         if enterprise_name:
             result = [r for r in result if enterprise_name.lower() in r.enterprise_name.lower()]

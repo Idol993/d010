@@ -24,10 +24,12 @@ class WeeklyReporter:
         rollbacks: list,
         monitoring_data: list,
         week_start: datetime = None,
+        week_end: datetime = None,
     ) -> WeeklyStats:
         if week_start is None:
             week_start = self._get_week_start()
-        week_end = week_start + datetime.timedelta(days=7)
+        if week_end is None:
+            week_end = week_start + datetime.timedelta(days=7)
 
         week_releases = [
             r for r in releases
@@ -94,6 +96,13 @@ class WeeklyReporter:
             else 0.0
         )
 
+        top_rollback_enterprises = self._calc_top_rollback_enterprises(
+            week_releases, rollbacks, week_start, week_end
+        )
+        top_alert_modules = self._calc_top_alert_modules(
+            week_releases, week_monitoring
+        )
+
         return WeeklyStats(
             week_start=week_start,
             week_end=week_end,
@@ -105,7 +114,37 @@ class WeeklyReporter:
             avg_loan_success_rate=avg_loan_success_rate,
             avg_fund_delay=avg_fund_delay,
             release_success_rate=release_success_rate,
+            top_rollback_enterprises=top_rollback_enterprises,
+            top_alert_modules=top_alert_modules,
         )
+
+    def _calc_top_rollback_enterprises(self, releases, rollbacks, week_start, week_end, top_n=3):
+        enterprise_rb_count = {}
+        release_map = {r.id: r for r in releases}
+        for rb in rollbacks:
+            if not rb.created_at or not (week_start <= rb.created_at < week_end):
+                continue
+            rel = release_map.get(rb.release_id)
+            if not rel:
+                continue
+            name = rel.enterprise_name
+            enterprise_rb_count[name] = enterprise_rb_count.get(name, 0) + 1
+        sorted_list = sorted(enterprise_rb_count.items(), key=lambda x: x[1], reverse=True)
+        return [{"enterprise": name, "rollback_count": cnt} for name, cnt in sorted_list[:top_n]]
+
+    def _calc_top_alert_modules(self, releases, monitoring_data, top_n=3):
+        module_alert_count = {}
+        release_map = {r.id: r for r in releases}
+        for m in monitoring_data:
+            if not m.alert_triggered:
+                continue
+            rel = release_map.get(m.release_id)
+            if not rel:
+                continue
+            mod = rel.industry_chain_module
+            module_alert_count[mod] = module_alert_count.get(mod, 0) + 1
+        sorted_list = sorted(module_alert_count.items(), key=lambda x: x[1], reverse=True)
+        return [{"module": name, "alert_count": cnt} for name, cnt in sorted_list[:top_n]]
 
     def generate_pdf_report(self, stats: WeeklyStats) -> str:
         try:
@@ -186,6 +225,26 @@ class WeeklyReporter:
             pdf.cell(90, 8, label, border=1)
             pdf.cell(90, 8, value, border=1, ln=True)
         pdf.ln(5)
+
+        if stats.top_rollback_enterprises:
+            pdf.set_font("Helvetica", "B", 12)
+            pdf.cell(0, 10, "Top Rollback Enterprises", ln=True)
+            pdf.set_font("Helvetica", "", 10)
+            for i, item in enumerate(stats.top_rollback_enterprises, 1):
+                pdf.cell(10, 7, f"{i}.", border=1)
+                pdf.cell(120, 7, item["enterprise"], border=1)
+                pdf.cell(50, 7, f"{item['rollback_count']} 次", border=1, ln=True)
+            pdf.ln(3)
+
+        if stats.top_alert_modules:
+            pdf.set_font("Helvetica", "B", 12)
+            pdf.cell(0, 10, "Top Alert Modules", ln=True)
+            pdf.set_font("Helvetica", "", 10)
+            for i, item in enumerate(stats.top_alert_modules, 1):
+                pdf.cell(10, 7, f"{i}.", border=1)
+                pdf.cell(120, 7, item["module"], border=1)
+                pdf.cell(50, 7, f"{item['alert_count']} 次", border=1, ln=True)
+            pdf.ln(5)
 
         pdf.set_font("Helvetica", "B", 12)
         pdf.cell(0, 10, "Charts", ln=True)
@@ -284,6 +343,32 @@ class WeeklyReporter:
             ws3.cell(row=row_idx, column=7, value=m.ar_anomaly_rate)
             ws3.cell(row=row_idx, column=8, value=m.overdue_risk_score)
             ws3.cell(row=row_idx, column=9, value="是" if m.alert_triggered else "否")
+
+        if stats.top_rollback_enterprises:
+            ws4 = wb.create_sheet("回滚Top企业")
+            headers4 = ["排名", "核心企业", "回滚次数"]
+            col_widths4 = [8, 30, 15]
+            for col, (header, width) in enumerate(zip(headers4, col_widths4), 1):
+                cell = ws4.cell(row=1, column=col, value=header)
+                cell.font = Font(bold=True)
+                ws4.column_dimensions[chr(64 + col)].width = width
+            for row_idx, item in enumerate(stats.top_rollback_enterprises, 2):
+                ws4.cell(row=row_idx, column=1, value=row_idx - 1)
+                ws4.cell(row=row_idx, column=2, value=item["enterprise"])
+                ws4.cell(row=row_idx, column=3, value=item["rollback_count"])
+
+        if stats.top_alert_modules:
+            ws5 = wb.create_sheet("告警Top模块")
+            headers5 = ["排名", "产业链模块", "告警次数"]
+            col_widths5 = [8, 30, 15]
+            for col, (header, width) in enumerate(zip(headers5, col_widths5), 1):
+                cell = ws5.cell(row=1, column=col, value=header)
+                cell.font = Font(bold=True)
+                ws5.column_dimensions[chr(64 + col)].width = width
+            for row_idx, item in enumerate(stats.top_alert_modules, 2):
+                ws5.cell(row=row_idx, column=1, value=row_idx - 1)
+                ws5.cell(row=row_idx, column=2, value=item["module"])
+                ws5.cell(row=row_idx, column=3, value=item["alert_count"])
 
         week_start_str = stats.week_start.strftime("%Y%m%d") if stats.week_start else "unknown"
         output_path = os.path.join(WEEKLY_REPORT_DIR, f"weekly_data_{week_start_str}.xlsx")

@@ -22,13 +22,18 @@ def print_menu():
     print("  8.  创建回滚演练")
     print("  9.  执行回滚演练")
     print("  10. 生成周报 (PDF + Excel) [手动]")
-    print("  11. 查询历史发布记录")
-    print("  12. 批量导出记录")
-    print("  13. 查看资金合规日志")
-    print("  14. 运行完整演示流程")
-    print("  15. 启动每周一自动生成周报调度器")
-    print("  16. 停止每周一自动生成周报调度器")
-    print("  17. 切换到长期运行模式 (保持调度器、监控器活跃)")
+    print("  11. 指定日期范围生成周报")
+    print("  12. 查询历史发布记录")
+    print("  13. 批量导出记录")
+    print("  14. 查看资金合规日志")
+    print("  15. 查看通知流水")
+    print("  16. 发布风险看板")
+    print("  17. 导出风险看板 Excel")
+    print("  18. 重新生成回滚报告 (PDF+TXT)")
+    print("  19. 运行完整演示流程")
+    print("  20. 启动每周一自动生成周报调度器")
+    print("  21. 停止每周一自动生成周报调度器")
+    print("  22. 切换到长期运行模式 (保持调度器、监控器活跃)")
     print("  0.  退出")
     print(f"{'='*60}")
 
@@ -186,6 +191,31 @@ def interactive_mode():
             manager.generate_weekly_report()
 
         elif choice == "11":
+            print("请输入周报日期范围:")
+            start_s = input("起始日期 (YYYY-MM-DD): ").strip()
+            end_s = input("结束日期 (YYYY-MM-DD, 留空则默认+7天): ").strip()
+            import datetime as _dt
+            week_start = None
+            week_end = None
+            for _fmt in ("%Y-%m-%d", "%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S"):
+                try:
+                    week_start = _dt.datetime.strptime(start_s, _fmt)
+                    break
+                except ValueError:
+                    continue
+            if not week_start:
+                print("[错误] 起始日期格式不正确")
+                continue
+            if end_s:
+                for _fmt in ("%Y-%m-%d", "%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S"):
+                    try:
+                        week_end = _dt.datetime.strptime(end_s, _fmt)
+                        break
+                    except ValueError:
+                        continue
+            manager.generate_weekly_report_by_date(week_start, week_end)
+
+        elif choice == "12":
             print("查询条件 (留空跳过):")
             start_s = input("发布起始时间 (YYYY-MM-DD 或 YYYY-MM-DD HH:MM:SS): ").strip()
             end_s = input("发布结束时间 (YYYY-MM-DD 或 YYYY-MM-DD HH:MM:SS): ").strip()
@@ -216,7 +246,7 @@ def interactive_mode():
                 kwargs["version"] = ver
             manager.query_history(**kwargs)
 
-        elif choice == "12":
+        elif choice == "13":
             print("导出条件 (留空导出全部, 筛选条件与查询一致):")
             start_s = input("发布起始时间 (YYYY-MM-DD 或 YYYY-MM-DD HH:MM:SS): ").strip()
             end_s = input("发布结束时间 (YYYY-MM-DD 或 YYYY-MM-DD HH:MM:SS): ").strip()
@@ -247,22 +277,39 @@ def interactive_mode():
                 kwargs["version"] = ver
             manager.export_records(**kwargs)
 
-        elif choice == "13":
+        elif choice == "14":
             rid = input("发布ID (留空查看全部): ").strip()
             manager.list_compliance_logs(release_id=rid)
 
-        elif choice == "14":
+        elif choice == "15":
+            rid = input("发布ID (留空查看全部): ").strip()
+            manager.list_notifications(release_id=rid)
+
+        elif choice == "16":
+            manager.show_risk_dashboard()
+
+        elif choice == "17":
+            manager.export_dashboard_excel()
+
+        elif choice == "18":
+            rid = input("发布ID (或回滚ID, 二选一): ").strip()
+            if rid.startswith("rb") or rid.startswith("RB") or len(rid) < 6:
+                manager.regenerate_rollback_report(rollback_id=rid)
+            else:
+                manager.regenerate_rollback_report(release_id=rid)
+
+        elif choice == "19":
             run_demo(manager)
 
-        elif choice == "15":
+        elif choice == "20":
             manager.start_weekly_scheduler()
             print("每周一自动生成周报调度器已启动（每周一09:00自动运行）")
 
-        elif choice == "16":
+        elif choice == "21":
             manager.stop_weekly_scheduler()
             print("每周一自动生成周报调度器已停止")
 
-        elif choice == "17":
+        elif choice == "22":
             manager.start_weekly_scheduler()
             print("\n进入长期运行模式：")
             print("  - 每周一09:00 自动生成周报")

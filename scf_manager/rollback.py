@@ -2,15 +2,16 @@ import json
 import os
 from datetime import datetime
 
-from .models import RollbackRecord, RollbackStatus, ReleaseRecord, ReleaseStatus, ApprovalRole
+from .models import RollbackRecord, RollbackStatus, ReleaseRecord, ReleaseStatus, ApprovalRole, NotificationType
 from .config import NOTIFICATION_ROLES_ON_ROLLBACK, DEFAULT_APPROVERS, ROLLBACK_DB_FILE, DATA_DIR
 
 
 class RollbackEngine:
 
-    def __init__(self, compliance_logger=None):
+    def __init__(self, compliance_logger=None, notification_manager=None):
         self._records: list[RollbackRecord] = []
         self._compliance_logger = compliance_logger
+        self._notification_manager = notification_manager
         self._load()
 
     def execute_rollback(self, release: ReleaseRecord, trigger_reason: str, monitoring_metrics=None) -> RollbackRecord:
@@ -48,6 +49,21 @@ class RollbackEngine:
         record.status = RollbackStatus.COMPLETED
         record.completed_at = datetime.now()
 
+        if self._notification_manager:
+            notification_type = NotificationType.MANUAL_ROLLBACK if "手动" in trigger_reason else NotificationType.AUTO_ROLLBACK
+            if "自动" in trigger_reason:
+                notification_type = NotificationType.AUTO_ROLLBACK
+            elif "手动" in trigger_reason:
+                notification_type = NotificationType.MANUAL_ROLLBACK
+            else:
+                notification_type = NotificationType.AUTO_ROLLBACK
+            self._notification_manager.send_batch(
+                release_id=release.id,
+                notification_type=notification_type,
+                roles=NOTIFICATION_ROLES_ON_ROLLBACK + ["核心企业对接人"],
+                content_summary=f"回滚原因: {trigger_reason}; 影响范围: {record.impact_scope[:50]}",
+            )
+
         if self._compliance_logger:
             self._compliance_logger.log(
                 operation="回滚执行",
@@ -79,6 +95,124 @@ class RollbackEngine:
         if not release_id:
             return list(self._records)
         return [r for r in self._records if r.release_id == release_id]
+
+    def regenerate_report(
+        self,
+        rollback_id: str,
+        release: ReleaseRecord,
+        monitoring_metrics=None,
+    ) -> RollbackRecord:
+        record = next((r for r in self._records if r.id == rollback_id), None)
+        if not record:
+            raise ValueError(f"回滚记录不存在: {rollback_id}")
+
+        if monitoring_metrics is None:
+            monitoring_metrics = []
+
+        if not record.impact_scope:
+            record.impact_scope = (
+                f"核心企业 {release.enterprise_name} 相关放款策略, "
+                f"涉及产业链模块 {release.industry_chain_module}"
+            )
+        if not record.fund_anomaly_reason:
+            record.fund_anomaly_reason = self._analyze_fund_anomaly(monitoring_metrics)
+
+        report = self._generate_report(record, release, monitoring_metrics)
+        os.makedirs(DATA_DIR, exist_ok=True)
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        txt_path = f"{DATA_DIR}/rollback_report_{record.id}_regen_{ts}.txt"
+        with open(txt_path, "w", encoding="utf-8") as f:
+            f.write(report)
+        record.report_path = txt_path
+
+        pdf_path = self._generate_pdf_report(record, release, monitoring_metrics)
+        if pdf_path:
+            record.report_pdf_path = pdf_path
+
+        if self._compliance_logger:
+            self._compliance_logger.log(
+                operation="回滚报告重新生成",
+                operator="RollbackEngine",
+                details=f"回滚 {record.id} 报告已重新生成 (TXT+PDF)",
+                release_id=release.id,
+            )
+
+        self._save()
+        return record
+
+    def _generate_pdf_report(self, record, release, monitoring_metrics) -> str:
+        try:
+            from fpdf import FPDF
+        except ImportError:
+            print("[警告] fpdf2 未安装，跳过 PDF 报告生成")
+            return ""
+
+        try:
+            pdf = FPDF()
+            pdf.add_page()
+            pdf.set_font("Arial", size=12)
+            pdf.cell(0, 10, txt="Supply Chain Finance Rollback Report", ln=True, align="C")
+            pdf.ln(5)
+            pdf.set_font("Arial", size=10)
+            pdf.cell(0, 8, txt=f"Rollback ID: {record.id}", ln=True)
+            pdf.cell(0, 8, txt=f"Release ID: {record.release_id}", ln=True)
+            pdf.cell(0, 8, txt=f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", ln=True)
+            pdf.ln(3)
+            pdf.set_font("Arial", "B", 11)
+            pdf.cell(0, 8, txt="1. Trigger Info", ln=True)
+            pdf.set_font("Arial", size=10)
+            pdf.multi_cell(0, 6, txt=f"Reason: {record.trigger_reason}")
+            pdf.cell(0, 8, txt=f"Status: {record.status.value}", ln=True)
+            pdf.ln(3)
+            pdf.set_font("Arial", "B", 11)
+            pdf.cell(0, 8, txt="2. Impact Scope", ln=True)
+            pdf.set_font("Arial", size=10)
+            pdf.multi_cell(0, 6, txt=record.impact_scope)
+            pdf.ln(3)
+            pdf.set_font("Arial", "B", 11)
+            pdf.cell(0, 8, txt="3. Fund Anomaly Analysis", ln=True)
+            pdf.set_font("Arial", size=10)
+            pdf.multi_cell(0, 6, txt=record.fund_anomaly_reason)
+            pdf.ln(3)
+            pdf.set_font("Arial", "B", 11)
+            pdf.cell(0, 8, txt="4. Compliance Risk", ln=True)
+            pdf.set_font("Arial", size=10)
+            pdf.multi_cell(0, 6, txt=record.compliance_risk_desc)
+            pdf.ln(3)
+            pdf.set_font("Arial", "B", 11)
+            pdf.cell(0, 8, txt="5. Notified Roles", ln=True)
+            pdf.set_font("Arial", size=10)
+            for role in record.notified_roles:
+                pdf.cell(0, 6, txt=f"  - {role}", ln=True)
+            pdf.ln(3)
+            pdf.set_font("Arial", "B", 11)
+            pdf.cell(0, 8, txt="6. Release Info", ln=True)
+            pdf.set_font("Arial", size=10)
+            pdf.cell(0, 6, txt=f"  Version: {release.version}", ln=True)
+            pdf.cell(0, 6, txt=f"  Enterprise: {release.enterprise_name}", ln=True)
+            pdf.cell(0, 6, txt=f"  Module: {release.industry_chain_module}", ln=True)
+            pdf.cell(0, 6, txt=f"  Amount: {release.loan_amount:,.2f}", ln=True)
+            pdf.cell(0, 6, txt=f"  Stable Version: {release.stable_version}", ln=True)
+            if monitoring_metrics:
+                pdf.ln(3)
+                pdf.set_font("Arial", "B", 11)
+                pdf.cell(0, 8, txt="7. Monitoring Metrics", ln=True)
+                pdf.set_font("Arial", size=10)
+                for i, m in enumerate(monitoring_metrics, 1):
+                    ts = m.timestamp.strftime('%Y-%m-%d %H:%M:%S') if m.timestamp else "unknown"
+                    pdf.cell(0, 6, txt=f"  Metrics #{i} ({ts}):", ln=True)
+                    pdf.cell(0, 6, txt=f"    Loan Success Rate: {m.loan_success_rate:.2f}%", ln=True)
+                    pdf.cell(0, 6, txt=f"    Fund Arrival Delay: {m.fund_arrival_delay_min:.2f} min", ln=True)
+                    pdf.cell(0, 6, txt=f"    AR Anomaly Rate: {m.ar_anomaly_rate:.2f}%", ln=True)
+                    pdf.cell(0, 6, txt=f"    Overdue Risk Score: {m.overdue_risk_score:.2f}", ln=True)
+
+            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+            pdf_path = f"{DATA_DIR}/rollback_report_{record.id}_regen_{ts}.pdf"
+            pdf.output(pdf_path)
+            return pdf_path
+        except Exception as e:
+            print(f"[警告] 生成 PDF 报告失败: {e}")
+            return ""
 
     def _analyze_fund_anomaly(self, monitoring_metrics) -> str:
         if not monitoring_metrics:
@@ -219,6 +353,7 @@ class RollbackEngine:
                 "compliance_risk_desc": record.compliance_risk_desc,
                 "status": record.status.value,
                 "report_path": record.report_path,
+                "report_pdf_path": record.report_pdf_path,
                 "created_at": record.created_at.isoformat() if record.created_at else "",
                 "completed_at": record.completed_at.isoformat() if record.completed_at else "",
                 "notified_roles": record.notified_roles,
@@ -266,6 +401,7 @@ class RollbackEngine:
                     compliance_risk_desc=item.get("compliance_risk_desc", ""),
                     status=status_map.get(item.get("status", ""), RollbackStatus.TRIGGERED),
                     report_path=item.get("report_path", ""),
+                    report_pdf_path=item.get("report_pdf_path", ""),
                     created_at=created_at,
                     completed_at=completed_at,
                     notified_roles=item.get("notified_roles", []),

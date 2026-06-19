@@ -1,0 +1,62 @@
+[
+  {
+    "id": "962c6a70",
+    "release_id": "test-001",
+    "drill_id": "",
+    "notification_type": "自动回滚通知",
+    "recipient_role": "测试角色",
+    "recipient_name": "测试人",
+    "status": "已发送",
+    "content_summary": "测试内容摘要",
+    "sent_at": "2026-06-19T13:25:54.163650",
+    "delivery_result": "成功"
+  },
+  {
+    "id": "11e85288",
+    "release_id": "test-002",
+    "drill_id": "",
+    "notification_type": "手动回滚通知",
+    "recipient_role": "业务审批人",
+    "recipient_name": "业务主管-张明",
+    "status": "已发送",
+    "content_summary": "批量测试通知",
+    "sent_at": "2026-06-19T13:25:54.165234",
+    "delivery_result": "成功"
+  },
+  {
+    "id": "3b918a27",
+    "release_id": "test-002",
+    "drill_id": "",
+    "notification_type": "手动回滚通知",
+    "recipient_role": "风控审批人",
+    "recipient_name": "风控主管-李华",
+    "status": "已发送",
+    "content_summary": "批量测试通知",
+    "sent_at": "2026-06-19T13:25:54.165490",
+    "delivery_result": "成功"
+  },
+  {
+    "id": "49e990eb",
+    "release_id": "test-002",
+    "drill_id": "",
+    "notification_type": "手动回滚通知",
+    "recipient_role": "核心企业对接人",
+    "recipient_name": "核心企业对接专员",
+    "status": "已发送",
+    "content_summary": "批量测试通知",
+    "sent_at": "2026-06-19T13:25:54.165664",
+    "delivery_result": "成功"
+  },
+  {
+    "id": "021a675d",
+    "release_id": "test-compliance",
+    "drill_id": "",
+    "notification_type": "发布审批通知",
+    "recipient_role": "测试角色",
+    "recipient_name": "测试人",
+    "status": "已发送",
+    "content_summary": "",
+    "sent_at": "2026-06-19T13:26:27.050347",
+    "delivery_result": "成功"
+  }
+]
